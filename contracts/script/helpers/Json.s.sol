@@ -31,6 +31,19 @@ abstract contract Json is Script {
         return abi.decode(raw, (address));
     }
 
+    /// @notice Writes a non-address value (a market id, a pool address recorded as text) at `key`.
+    function writeString(string memory key, string memory value) internal {
+        if (!vm.exists(ADDRESSES_PATH)) {
+            vm.writeFile(ADDRESSES_PATH, "{}");
+        }
+        vm.writeJson(string.concat("\"", value, "\""), ADDRESSES_PATH, string.concat(".", key));
+    }
+
+    /// @notice Reads a string written by `writeString`.
+    function readString(string memory key) internal view returns (string memory) {
+        return vm.parseJsonString(vm.readFile(ADDRESSES_PATH), string.concat(".", key));
+    }
+
     /// @notice Reads `key` and fails loudly when it is missing, which means the deploy order was
     ///         broken: every step depends on the address written by the step before it.
     function requireAddress(string memory key) internal view returns (address addr) {

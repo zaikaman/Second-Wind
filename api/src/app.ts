@@ -6,11 +6,20 @@ import rateLimit from 'express-rate-limit';
 import { logger, requestLogger } from './lib/logger.js';
 import { createHealthRouter } from './routes/health.js';
 import type { HealthProvider } from './routes/health.js';
+import { createClaimsRouter } from './routes/claims.js';
+import type { ClaimsStore } from './routes/claims.js';
+import { createPoliciesRouter } from './routes/policies.js';
+import type { PoliciesStore } from './routes/policies.js';
+import { createStatsRouter } from './routes/stats.js';
+import type { StatsStore } from './routes/stats.js';
 
 export type AppDeps = {
   version: string;
   corsOrigins: string[];
   health: HealthProvider;
+  claims?: ClaimsStore;
+  policies?: PoliciesStore;
+  stats?: StatsStore;
 };
 
 const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
@@ -46,6 +55,15 @@ export function createApp(deps: AppDeps) {
   app.use(requestLogger);
 
   app.use(createHealthRouter(deps.health));
+  if (deps.claims) {
+    app.use(createClaimsRouter(deps.claims));
+  }
+  if (deps.policies) {
+    app.use(createPoliciesRouter(deps.policies));
+  }
+  if (deps.stats) {
+    app.use(createStatsRouter(deps.stats));
+  }
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No such route.' } });

@@ -26,6 +26,15 @@ const schema = z.object({
   COVERAGE_POOL_ADDRESS: address,
   CLAIM_VAULT_ADDRESS: address,
   REACTIVE_ADDRESS: address,
+  BASE_REGISTRY_ADDRESS: address,
+  BASE_COVER_ASSET: address,
+  UNICHAIN_COVER_ASSET: address,
+
+  INDEXER_START_BASE: z.coerce.number().int().nonnegative().default(0),
+  INDEXER_START_UNICHAIN: z.coerce.number().int().nonnegative().default(0),
+  INDEXER_START_REACTIVE: z.coerce.number().int().nonnegative().default(0),
+  INDEXER_CONFIRMATIONS: z.coerce.number().int().nonnegative().default(5),
+  INDEXER_POLL_MS: z.coerce.number().int().positive().default(5_000),
 });
 
 export type Env = z.infer<typeof schema>;

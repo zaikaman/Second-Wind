@@ -1,13 +1,12 @@
 import { defineChain } from 'viem';
 import { baseSepolia, unichainSepolia } from 'viem/chains';
-import type { Chain } from 'viem';
 
 function rpcUrl(configured: string | undefined, fallback: string): string {
   return configured && configured.length > 0 ? configured : fallback;
 }
 
 /** Base Sepolia (84532): origin chain. Morpho, PolicyRegistry and CoveragePool live here. */
-export const baseSepoliaChain: Chain = {
+export const baseSepoliaChain = {
   ...baseSepolia,
   rpcUrls: {
     default: {
@@ -17,7 +16,7 @@ export const baseSepoliaChain: Chain = {
 };
 
 /** Unichain Sepolia (1301): cash payout destination. ClaimVault lives here. */
-export const unichainSepoliaChain: Chain = {
+export const unichainSepoliaChain = {
   ...unichainSepolia,
   rpcUrls: {
     default: {
@@ -27,7 +26,7 @@ export const unichainSepoliaChain: Chain = {
 };
 
 /** Reactive Lasna (5318007): watches events and dispatches both callbacks. Read-only from the app. */
-export const lasnaChain: Chain = defineChain({
+export const lasnaChain = defineChain({
   id: 5318007,
   name: 'Reactive Lasna',
   nativeCurrency: { name: 'REACT', symbol: 'REACT', decimals: 18 },

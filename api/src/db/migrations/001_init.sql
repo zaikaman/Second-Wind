@@ -17,6 +17,7 @@ create table policies_mirror (
   premium_per_second numeric(38,18) not null,
   paid_through       bigint      not null,
   target_health      numeric(38,18) not null,
+  lltv               numeric(38,18) not null default 0,
   cash_destination   text        not null,
   status             text        not null,
   created_at         timestamptz not null,

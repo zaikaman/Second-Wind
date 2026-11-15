@@ -41,7 +41,6 @@ contract ClaimVault is AbstractCallback, ReentrancyGuard {
     error TermsMismatch(uint256 policyId);
     error ZeroDestination();
     error CeilingTooLarge(uint256 cashCeiling);
-    error SettlementNotImplemented();
 
     /// @notice Hard ceiling on any single policy's cash cover.
     uint256 public constant MAX_CASH_CEILING = 10_000e18;
@@ -97,9 +96,10 @@ contract ClaimVault is AbstractCallback, ReentrancyGuard {
         emit PolicyRegistered(policyId, cashCeiling, destination, paidThrough);
     }
 
-    /// @notice Pays the cash share for one liquidation.
-    /// @dev Phase 2 scaffolding: authentication, the replay guard and the "terms must exist" check
-    ///      are final; the ceiling, reserve and transfer steps are implemented in Phase 3 (T109-T111).
+    /// @notice Pays the cash share for one liquidation to the destination fixed at registration.
+    /// @dev Every check runs before any write, so a rejected claim leaves `cashPaid`,
+    ///      `lastPaidThrough` and `usedRuns` untouched. The recipient is never taken from the
+    ///      payload: a buggy reactive contract can overstate an amount but cannot redirect a payout.
     function payClaim(
         address reactive_,
         bytes32 runId,
@@ -111,13 +111,38 @@ contract ClaimVault is AbstractCallback, ReentrancyGuard {
         if (usedRuns[runId]) {
             revert DuplicateRun(runId, ReasonCodes.DUPLICATE_DELIVERY);
         }
-        if (!_terms[policyId].registered) {
+
+        Terms storage t = _terms[policyId];
+        if (!t.registered) {
             revert UnknownPolicy(policyId, ReasonCodes.UNKNOWN_LOAN);
         }
-        cashAmount;
-        paidThrough;
-        decidedAt;
-        revert SettlementNotImplemented();
+        if (paidThrough < decidedAt) {
+            revert PremiumLapsed(paidThrough, decidedAt, ReasonCodes.PREMIUM_LAPSED);
+        }
+        if (paidThrough < _lastPaidThrough[policyId]) {
+            revert StaleWindow(paidThrough, _lastPaidThrough[policyId], ReasonCodes.PREMIUM_LAPSED);
+        }
+        if (cashAmount == 0) {
+            revert ZeroFee(ReasonCodes.ZERO_FEE);
+        }
+
+        uint256 alreadyPaid = _cashPaid[policyId];
+        if (alreadyPaid + cashAmount > t.cashCeiling) {
+            revert CapExceeded(cashAmount, t.cashCeiling - alreadyPaid, ReasonCodes.COVERAGE_EXHAUSTED);
+        }
+
+        uint256 available = coverAsset.balanceOf(address(this));
+        if (available < cashAmount) {
+            revert ReserveInsufficient(cashAmount, available, ReasonCodes.DESTINATION_UNDERFUNDED);
+        }
+
+        usedRuns[runId] = true;
+        _cashPaid[policyId] = alreadyPaid + cashAmount;
+        _lastPaidThrough[policyId] = paidThrough;
+
+        coverAsset.safeTransfer(t.destination, cashAmount);
+
+        emit ClaimPaid(runId, policyId, t.destination, cashAmount, paidThrough);
     }
 
     /// @notice Cash cover originally registered for a policy.

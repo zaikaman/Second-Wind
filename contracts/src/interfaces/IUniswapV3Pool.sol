@@ -29,4 +29,7 @@ interface IUniswapV3Pool {
     function token1() external view returns (address);
 
     function liquidity() external view returns (uint128);
+
+    /// @notice Sets the starting price of a freshly created pool. Reverts if already initialised.
+    function initialize(uint160 sqrtPriceX96) external;
 }

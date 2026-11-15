@@ -157,54 +157,54 @@ description: "Task list for Second Wind (001-second-wind)"
 
 ### Tests first (write these, watch them fail)
 
-- [ ] T091 [P] [US1] `contracts/test/unit/FeeMath.t.sol`: LIF at every enabled LLTV (0.77, 0.86, 0.91, 0.945, 0.965, 0.98) and the 1.15 cap
-- [ ] T092 [P] [US1] `contracts/test/unit/FeeMath.t.sol`: penalty floors correctly; `split` never sums above `fee`; fuzz 10k random pairs
-- [ ] T093 [P] [US1] `contracts/test/unit/ClaimVault.t.sol`: registration idempotency, `TermsMismatch`, ceiling cap, reserve shortfall, replay, stale window, zero amount
-- [ ] T094 [P] [US1] `contracts/test/unit/Reactive.t.sol`: a `Liquidate` record produces exactly two `requestCallbackV_1_0` calls with the same `runId`, `address(0)` first argument, and gas `400_000` / `300_000`
-- [ ] T095 [P] [US1] `contracts/test/unit/Reactive.t.sol`: lapsed premium, unknown loan, zero fee, paused policy, and cancelled policy each produce zero callbacks
-- [ ] T096 [P] [US1] `contracts/test/unit/Reactive.t.sol`: the same `runId` delivered twice produces one dispatch; a different `logIndex` produces a second dispatch
-- [ ] T097 [P] [US1] `contracts/test/unit/CoveragePool.t.sol`: a valid claim repays the loan, consumes the `runId`, emits `ReliefApplied`, and reduces the reserve by exactly the repaid amount
-- [ ] T098 [P] [US1] `contracts/test/integration/Join.t.sol`: harness drives both destination calls from one `runId`; both succeed; the shared id is identical
-- [ ] T099 [P] [US1] `contracts/test/integration/Replay.t.sol`: 1,000 deliveries per branch produce exactly one state change each
+- [X] T091 [P] [US1] `contracts/test/unit/FeeMath.t.sol`: LIF at every enabled LLTV (0.77, 0.86, 0.91, 0.945, 0.965, 0.98) and the 1.15 cap
+- [X] T092 [P] [US1] `contracts/test/unit/FeeMath.t.sol`: penalty floors correctly; `split` never sums above `fee`; fuzz 10k random pairs
+- [X] T093 [P] [US1] `contracts/test/unit/ClaimVault.t.sol`: registration idempotency, `TermsMismatch`, ceiling cap, reserve shortfall, replay, stale window, zero amount
+- [X] T094 [P] [US1] `contracts/test/unit/Reactive.t.sol`: a `Liquidate` record produces exactly two `requestCallbackV_1_0` calls with the same `runId`, `address(0)` first argument, and gas `400_000` / `300_000`
+- [X] T095 [P] [US1] `contracts/test/unit/Reactive.t.sol`: lapsed premium, unknown loan, zero fee, paused policy, and cancelled policy each produce zero callbacks
+- [X] T096 [P] [US1] `contracts/test/unit/Reactive.t.sol`: the same `runId` delivered twice produces one dispatch; a different `logIndex` produces a second dispatch
+- [X] T097 [P] [US1] `contracts/test/unit/CoveragePool.t.sol`: a valid claim repays the loan, consumes the `runId`, emits `ReliefApplied`, and reduces the reserve by exactly the repaid amount
+- [X] T098 [P] [US1] `contracts/test/integration/Join.t.sol`: harness drives both destination calls from one `runId`; both succeed; the shared id is identical
+- [X] T099 [P] [US1] `contracts/test/integration/Replay.t.sol`: 1,000 deliveries per branch produce exactly one state change each
 - [ ] T100 [P] [US1] `contracts/test/fork/Fork.Settle.t.sol`: on a Base Sepolia fork with `MockOracle` at 2500, create a real market, liquidate, and assert the observed penalty is within 1 basis point of `FeeMath.penalty` (the Uniswap-backed oracle is swapped in at T118)
 
 ### Implementation — settlement math
 
-- [ ] T101 [US1] Implement `FeeMath` to pass T091–T092; add a NatSpec comment stating the rounding direction and why
-- [ ] T102 [US1] Implement `HealthMath` `collateralValue` and `health` (the `weakest` and `repayForTarget` parts stay for US2)
-- [ ] T103 [US1] Fill `Topics.sol` from the signature strings and make T066 pass
+- [X] T101 [US1] Implement `FeeMath` to pass T091–T092; add a NatSpec comment stating the rounding direction and why
+- [X] T102 [US1] Implement `HealthMath` `collateralValue` and `health` (the `weakest` and `repayForTarget` parts stay for US2)
+- [X] T103 [US1] Fill `Topics.sol` from the signature strings and make T066 pass
 
 ### Implementation — Base branch
 
-- [ ] T104 [US1] Implement `CoveragePool.settleCascade` steps 1–4 from `contracts/base-callbacks.md`: auth, replay, policy read, premium/cancel/cap checks
-- [ ] T105 [US1] Implement the US1 target rule: repay the loan named by the policy until the limit or the debt is exhausted
-- [ ] T106 [US1] Implement effects then interaction: mark `runId`, `recordRelief`, `forceApprove`, `morpho.repay` on behalf of the borrower
-- [ ] T107 [US1] Implement `ReserveInsufficient` and the remaining custom errors with reason-code args; make T097 pass
-- [ ] T108 [US1] Emit `ReliefApplied` with `debtAfter` and `healthAfter`; assert the values in `CoveragePool.t.sol`
+- [X] T104 [US1] Implement `CoveragePool.settleCascade` steps 1–4 from `contracts/base-callbacks.md`: auth, replay, policy read, premium/cancel/cap checks
+- [X] T105 [US1] Implement the US1 target rule: repay the loan named by the policy until the limit or the debt is exhausted
+- [X] T106 [US1] Implement effects then interaction: mark `runId`, `recordRelief`, `forceApprove`, `morpho.repay` on behalf of the borrower
+- [X] T107 [US1] Implement `ReserveInsufficient` and the remaining custom errors with reason-code args; make T097 pass
+- [X] T108 [US1] Emit `ReliefApplied` with `debtAfter` and `healthAfter`; assert the values in `CoveragePool.t.sol`
 
 ### Implementation — Unichain branch
 
-- [ ] T109 [US1] Implement `ClaimVault.payClaim` steps 1–8: auth, replay, terms, `StaleWindow`, ceiling, reserve, effects, `safeTransfer`
-- [ ] T110 [US1] Emit `ClaimPaid` and make T093 pass, including the "no partial effects on failure" case
-- [ ] T111 [US1] Add `MAX_CASH_CEILING = 10_000e18` and enforce it in `registerPolicy`
+- [X] T109 [US1] Implement `ClaimVault.payClaim` steps 1–8: auth, replay, terms, `StaleWindow`, ceiling, reserve, effects, `safeTransfer`
+- [X] T110 [US1] Emit `ClaimPaid` and make T093 pass, including the "no partial effects on failure" case
+- [X] T111 [US1] Add `MAX_CASH_CEILING = 10_000e18` and enforce it in `registerPolicy`
 
 ### Implementation — reactive dispatch
 
-- [ ] T112 [US1] Implement `_onLiquidate`: `runId`, loan key resolution, policy lookup, early returns for unknown/duplicate/inactive/lapsed/zero-fee
-- [ ] T113 [US1] Implement `FeeMath` call plus the standard split, capped by `cashAvail` and `reliefAvail` including in-flight reservations
-- [ ] T114 [US1] Dispatch registration on `PolicyCreated` (only when `cashCeiling > 0`) and dispatch relief/cash on `Liquidate`
-- [ ] T115 [US1] Set `dispatched[runId]` and advance `reliefReserved` / `cashReserved` / `reservedByRun` atomically before requesting callbacks
-- [ ] T116 [US1] Implement `_onReliefApplied` and `_onClaimPaid` reconciliation so a settled claim frees exactly its reservation
-- [ ] T117 [US1] Make T094–T096 pass; assert both callbacks carry the identical `runId` and that the payload's first word decodes to `address(0)` before injection
+- [X] T112 [US1] Implement `_onLiquidate`: `runId`, loan key resolution, policy lookup, early returns for unknown/duplicate/inactive/lapsed/zero-fee
+- [X] T113 [US1] Implement `FeeMath` call plus the standard split, capped by `cashAvail` and `reliefAvail` including in-flight reservations
+- [X] T114 [US1] Dispatch registration on `PolicyCreated` (only when `cashCeiling > 0`) and dispatch relief/cash on `Liquidate`
+- [X] T115 [US1] Set `dispatched[runId]` and advance `reliefReserved` / `cashReserved` / `reservedByRun` atomically before requesting callbacks
+- [X] T116 [US1] Implement `_onReliefApplied` and `_onClaimPaid` reconciliation so a settled claim frees exactly its reservation
+- [X] T117 [US1] Make T094–T096 pass; assert both callbacks carry the identical `runId` and that the payload's first word decodes to `address(0)` before injection
 
 ### Implementation — deploy and demo scripts
 
-- [ ] T118 [US1] Implement `contracts/src/base/MorphoV3Oracle.sol` reading `slot0` with decimal adjustment and the `pool == address(0)` fallback mode plus `isDemoHarness()`
-- [ ] T119 [US1] Implement `contracts/script/SeedMarket.s.sol`: deploy tokens, create and initialise the Uniswap pool at 2500, add liquidity, create the Morpho market, supply liquidity
-- [ ] T120 [US1] Extend `SeedMarket.s.sol` to open the three loans and print each health factor with an assertion that all are above 1.0
-- [ ] T121 [US1] Add reserve funding to `SeedMarket.s.sol`: mint and transfer 250,000 `mUSDC` to `CoveragePool` and 250,000 to `ClaimVault`
-- [ ] T122 [US1] Implement `contracts/script/Crash.s.sol`: swap `mWETH` into the pool through `SwapRouter02`, then assert the oracle price is within 1% of the target
-- [ ] T123 [US1] Implement the liquidation step in `Crash.s.sol`: call `morpho.liquidate` for 90,000 on loan A and assert a `Liquidate` log was emitted
+- [X] T118 [US1] Implement `contracts/src/base/MorphoV3Oracle.sol` reading `slot0` with decimal adjustment and the `pool == address(0)` fallback mode plus `isDemoHarness()`
+- [X] T119 [US1] Implement `contracts/script/SeedMarket.s.sol`: deploy tokens, create and initialise the Uniswap pool at 2500, add liquidity, create the Morpho market, supply liquidity
+- [X] T120 [US1] Extend `SeedMarket.s.sol` to open the three loans and print each health factor with an assertion that all are above 1.0
+- [X] T121 [US1] Add reserve funding to `SeedMarket.s.sol`: mint and transfer 250,000 `mUSDC` to `CoveragePool` and 250,000 to `ClaimVault`
+- [X] T122 [US1] Implement `contracts/script/Crash.s.sol`: swap `mWETH` into the pool through `SwapRouter02`, then assert the oracle price is within 1% of the target
+- [X] T123 [US1] Implement the liquidation step in `Crash.s.sol`: call `morpho.liquidate` for 90,000 on loan A and assert a `Liquidate` log was emitted
 - [ ] T124 [US1] Deploy Base Sepolia contracts and record every address via `Json.s.sol` into `ops/addresses.json` and `ops/docs/addresses.md`
 - [ ] T125 [US1] Deploy `SecondWindReactive` to Lasna with `--value` for REACT, record it, and verify the constructor's six subscriptions in the tx logs
 - [ ] T126 [US1] Deploy `ClaimVault` and the Unichain `mUSDC` to Unichain Sepolia, record both
@@ -216,27 +216,27 @@ description: "Task list for Second Wind (001-second-wind)"
 
 ### Implementation — indexer and API for US1
 
-- [ ] T132 [P] [US1] `api/src/services/decoder.ts`: decode `Liquidate`, `PolicyCreated`, `PremiumPaid`, `PolicyStatusChanged`, `ReliefApplied`, `ClaimPaid` from raw logs, with `opCode` checks
-- [ ] T133 [P] [US1] `api/src/services/indexer.ts`: three independent poll loops, per-chain cursor persistence, overlap-safe `upsert`, and a `runOnce` export for tests
-- [ ] T134 [P] [US1] `api/src/services/joiner.ts`: create the `claims` row on `Liquidate`, upsert one `claim_events` row per branch, compute `pending | partial | settled | failed`
-- [ ] T135 [P] [US1] `api/src/services/latency.ts`: compute branch latency from origin block time to destination block time and write `latency_samples` once per confirmed branch
-- [ ] T136 [P] [US1] `api/src/routes/claims.ts`: `GET /claims` with cursor pagination and `GET /claims/:runId` returning the full receipt, `404` for unknown
-- [ ] T137 [P] [US1] `api/src/routes/policies.ts`: `GET /policies/:policyId` with live position read from Base, and `GET /policies?borrower=`
-- [ ] T138 [US1] `api/src/routes/stats.ts`: `GET /stats/latency` (p50, p95, max, per branch) and `GET /stats/coverage`
-- [ ] T139 [US1] `api/test/indexer.test.ts`: fixture logs produce one claim row; a single confirmed branch yields `partial`; both confirmed yields `settled`
-- [ ] T140 [US1] `api/test/claims.test.ts`: receipt matches the documented JSON shape, amounts are strings, partial claims are visible, unknown id is 404
-- [ ] T141 [US1] `api/test/latency.test.ts`: percentile function verified on a known 20-sample array
+- [X] T132 [P] [US1] `api/src/services/decoder.ts`: decode `Liquidate`, `PolicyCreated`, `PremiumPaid`, `PolicyStatusChanged`, `ReliefApplied`, `ClaimPaid` from raw logs, with `opCode` checks
+- [X] T133 [P] [US1] `api/src/services/indexer.ts`: three independent poll loops, per-chain cursor persistence, overlap-safe `upsert`, and a `runOnce` export for tests
+- [X] T134 [P] [US1] `api/src/services/joiner.ts`: create the `claims` row on `Liquidate`, upsert one `claim_events` row per branch, compute `pending | partial | settled | failed`
+- [X] T135 [P] [US1] `api/src/services/latency.ts`: compute branch latency from origin block time to destination block time and write `latency_samples` once per confirmed branch
+- [X] T136 [P] [US1] `api/src/routes/claims.ts`: `GET /claims` with cursor pagination and `GET /claims/:runId` returning the full receipt, `404` for unknown
+- [X] T137 [P] [US1] `api/src/routes/policies.ts`: `GET /policies/:policyId` with live position read from Base, and `GET /policies?borrower=`
+- [X] T138 [US1] `api/src/routes/stats.ts`: `GET /stats/latency` (p50, p95, max, per branch) and `GET /stats/coverage`
+- [X] T139 [US1] `api/test/indexer.test.ts`: fixture logs produce one claim row; a single confirmed branch yields `partial`; both confirmed yields `settled`
+- [X] T140 [US1] `api/test/claims.test.ts`: receipt matches the documented JSON shape, amounts are strings, partial claims are visible, unknown id is 404
+- [X] T141 [US1] `api/test/latency.test.ts`: percentile function verified on a known 20-sample array
 
 ### Implementation — web for US1
 
-- [ ] T142 [P] [US1] `web/src/hooks/usePolicies.ts`: multicall on Base for the borrower's policies, refetch every 5 s
-- [ ] T143 [P] [US1] `web/src/hooks/useClaim.ts`: fetch by `runId`, poll every 2 s while `pending` or `partial`, stop when terminal
-- [ ] T144 [P] [US1] `web/src/hooks/useHealth.ts`: per-market health from Morpho plus the oracle price, refetch every 3 s
-- [ ] T145 [US1] `web/src/pages/Dashboard.tsx`: position cards with health, debt, collateral, and policy status
-- [ ] T146 [US1] `web/src/pages/Receipt.tsx`: the fork view — trigger card, Lasna card, relief card, cash card, each with status, amount, tx link, latency
-- [ ] T147 [US1] `web/src/pages/Receipts.tsx`: list with status chips, fee, latency, and an empty state
-- [ ] T148 [US1] Add `copy to clipboard` for every hash and address with a 1.5 s confirmation
-- [ ] T149 [US1] Add loading skeletons, retry buttons, and an offline banner for every data path
+- [X] T142 [P] [US1] `web/src/hooks/usePolicies.ts`: multicall on Base for the borrower's policies, refetch every 5 s
+- [X] T143 [P] [US1] `web/src/hooks/useClaim.ts`: fetch by `runId`, poll every 2 s while `pending` or `partial`, stop when terminal
+- [X] T144 [P] [US1] `web/src/hooks/useHealth.ts`: per-market health from Morpho plus the oracle price, refetch every 3 s
+- [X] T145 [US1] `web/src/pages/Dashboard.tsx`: position cards with health, debt, collateral, and policy status
+- [X] T146 [US1] `web/src/pages/Receipt.tsx`: the fork view — trigger card, Lasna card, relief card, cash card, each with status, amount, tx link, latency
+- [X] T147 [US1] `web/src/pages/Receipts.tsx`: list with status chips, fee, latency, and an empty state
+- [X] T148 [US1] Add `copy to clipboard` for every hash and address with a 1.5 s confirmation
+- [X] T149 [US1] Add loading skeletons, retry buttons, and an offline banner for every data path
 - [ ] T150 [US1] **US1 independent validation**: from a fresh wallet with no prior state, buy one policy, trigger one liquidation, and confirm a receipt appears with no borrower transaction
 
 **Checkpoint**: US1 works on testnet. If Unichain fails here, stop and apply the 20-run gate before continuing.

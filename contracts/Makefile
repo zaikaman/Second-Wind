@@ -9,7 +9,7 @@ include $(ENV_FILE)
 export
 endif
 
-.PHONY: build test test-fork deploy-base deploy-reactive deploy-pool deploy-unichain wire wire-registry seed crash1 crash2 fmt
+.PHONY: build test test-fork deploy-base deploy-reactive deploy-pool deploy-unichain wire wire-registry seed fund-vault crash1 fmt
 
 build:
 	forge build
@@ -40,13 +40,13 @@ wire-registry:
 	forge script script/Wire.s.sol:WireRegistry --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
 
 seed:
-	forge script script/SeedMarket.s.sol --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
+	forge script script/SeedMarket.s.sol:SeedMarket --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
+
+fund-vault:
+	forge script script/SeedMarket.s.sol:FundClaimVault --rpc-url $(UNICHAIN_SEPOLIA_RPC) --broadcast
 
 crash1:
-	forge script script/Crash.s.sol --rpc-url $(BASE_SEPOLIA_RPC) --broadcast --private-key $(LIQUIDATOR_KEY)
-
-crash2:
-	forge script script/Crash.s.sol:Crash2 --rpc-url $(BASE_SEPOLIA_RPC) --broadcast --private-key $(LIQUIDATOR_KEY)
+	forge script script/Crash.s.sol:Crash --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
 
 fmt:
 	forge fmt

@@ -5,6 +5,13 @@ import { createSupabase } from './db/supabase.js';
 import { createRpcClients } from './lib/rpc.js';
 import { logger } from './lib/logger.js';
 import { createHealthProvider } from './services/health.js';
+import { createClaimsStore } from './services/claims-store.js';
+import { createPoliciesStore } from './services/policies-store.js';
+import { createPositionReader } from './services/positions.js';
+import { createStatsStore } from './services/stats-store.js';
+import { startIndexer } from './services/indexer.js';
+import { formatUnits } from 'viem';
+import type { Hex } from 'viem';
 
 const SHUTDOWN_GRACE_MS = 10_000;
 
@@ -22,20 +29,59 @@ async function main(): Promise<void> {
   });
   const db = createSupabase(config.SUPABASE_URL, config.SUPABASE_SERVICE_KEY);
 
+  const addresses = {
+    coveragePool: config.COVERAGE_POOL_ADDRESS as Hex,
+    claimVault: config.CLAIM_VAULT_ADDRESS as Hex,
+    reactive: config.REACTIVE_ADDRESS as Hex,
+    registry: config.BASE_REGISTRY_ADDRESS as Hex,
+    morpho: config.MORPHO as Hex,
+  };
+
   const health = createHealthProvider({
     version: config.VERSION,
     clients,
     addresses: {
-      coveragePool: config.COVERAGE_POOL_ADDRESS as `0x${string}`,
-      claimVault: config.CLAIM_VAULT_ADDRESS as `0x${string}`,
-      reactive: config.REACTIVE_ADDRESS as `0x${string}`,
+      coveragePool: addresses.coveragePool,
+      claimVault: addresses.claimVault,
+      reactive: addresses.reactive,
     },
     proxies: {
-      base: config.BASE_CALLBACK_PROXY as `0x${string}`,
-      unichain: config.UNICHAIN_CALLBACK_PROXY as `0x${string}`,
+      base: config.BASE_CALLBACK_PROXY as Hex,
+      unichain: config.UNICHAIN_CALLBACK_PROXY as Hex,
     },
     db,
   });
+
+  const ERC20_BALANCE_ABI = [
+    {
+      type: 'function',
+      name: 'balanceOf',
+      stateMutability: 'view',
+      inputs: [{ name: 'account', type: 'address' }],
+      outputs: [{ type: 'uint256' }],
+    },
+  ] as const;
+
+  const readReserve = async (chain: 'base' | 'unichain', asset: Hex, holder: Hex): Promise<string> => {
+    try {
+      const balance = await clients[chain].readContract({
+        address: asset,
+        abi: ERC20_BALANCE_ABI,
+        functionName: 'balanceOf',
+        args: [holder],
+      });
+      return formatUnits(balance, 18);
+    } catch {
+      return '0';
+    }
+  };
+
+  const claims = createClaimsStore(db);
+  const policies = createPoliciesStore(db, createPositionReader(clients.base, addresses.morpho));
+  const stats = createStatsStore(db, async () => ({
+    base: await readReserve('base', config.BASE_COVER_ASSET as Hex, addresses.coveragePool),
+    unichain: await readReserve('unichain', config.UNICHAIN_COVER_ASSET as Hex, addresses.claimVault),
+  }));
 
   const app = createApp({
     version: config.VERSION,
@@ -43,16 +89,31 @@ async function main(): Promise<void> {
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
     health,
+    claims,
+    policies,
+    stats,
   });
 
-  // The indexer (Base, Unichain, Lasna poll loops) starts here in the product phase; see
-  // specs/001-second-wind/tasks.md T133. Nothing else in this process depends on it.
+  const stopIndexer = startIndexer({
+    db,
+    clients,
+    addresses: {
+      base: { registry: addresses.registry, morpho: addresses.morpho, coveragePool: addresses.coveragePool },
+      unichain: { claimVault: addresses.claimVault },
+      reactive: { contract: addresses.reactive },
+    },
+    startBlocks: { base: config.INDEXER_START_BASE, unichain: config.INDEXER_START_UNICHAIN, reactive: config.INDEXER_START_REACTIVE },
+    confirmations: config.INDEXER_CONFIRMATIONS,
+    pollIntervalMs: config.INDEXER_POLL_MS,
+  });
+
   const server = app.listen(config.PORT, () => {
     logger.info({ port: config.PORT, version: config.VERSION }, 'api listening');
   });
 
   const shutdown = (signal: string): void => {
     logger.info({ signal }, 'shutting down');
+    stopIndexer();
     server.close(() => {
       logger.info('drained');
       process.exit(0);
