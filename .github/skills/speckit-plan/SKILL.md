@@ -103,7 +103,7 @@ Check if `.specify/extensions.yml` exists in the project root.
 
 ## Completion Report
 
-Command ends after Phase 1 design. Report branch, IMPL_PLAN path, and generated artifacts.
+Command ends after Phase 1 design. Report the branch (always `main`), IMPL_PLAN path, and generated artifacts.
 
 ## Phases
 
@@ -163,4 +163,4 @@ Command ends after Phase 1 design. Report branch, IMPL_PLAN path, and generated 
 
 - [ ] Plan workflow executed and design artifacts generated
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
-- [ ] Completion reported to user with branch, plan path, and generated artifacts
+- [ ] Completion reported to user with the branch (always `main`), plan path, and generated artifacts

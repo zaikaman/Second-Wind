@@ -11,8 +11,8 @@
     ".specify/scripts/powershell/setup-tasks.ps1": "d286da96d5b7e0075daa56e834fc1e1eb5beaddbc7e06d3ba898d0e9c071c50a",
     ".specify/templates/checklist-template.md": "856532b3cb66171c662cc16f16b31a5856e4655a8666aad1e545bbfc7f603ca1",
     ".specify/templates/constitution-template.md": "ce7549540fa45543cca797a150201d868e64495fdff39dc38246fb17bd4024b3",
-    ".specify/templates/plan-template.md": "7e637502d41eccf0ca672496636365691fdca62ef37b27ec07fcb412dbfa90d4",
-    ".specify/templates/spec-template.md": "3945437fc35cd30a5b2bf7beea680337c3516826d3efa5a6b92c4a7eca1ba28e",
+    ".specify/templates/plan-template.md": "a692ef3b9b90785a56a7bb7e6374edeac757514a87261f4de0f17a4fbd3dcb7d",
+    ".specify/templates/spec-template.md": "14ba9cea848b81305006e2c5beed109a0cb6b68ad341481203185113c1e0fdfd",
     ".specify/templates/tasks-template.md": "fc29a233f6f5a27ca31f1aa46b596af6500c627441c6e62b2bc4a1d721525842",
     ".specify/.gitignore": "0a61c5378b0bb2e0f85babff99c8b166f2170a2c12378cd17d929aa19296ec88"
   }

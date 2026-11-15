@@ -70,11 +70,11 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Branch creation** (optional, via hook):
+2. **Branch: stay on `main`** (project rule, not optional):
 
-   If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
+   This project uses a single-branch workflow. Do **not** create, switch, rename, or delete a git branch. Do **not** invoke any git/branch hook. If a hook has already switched branches, switch back to `main` before continuing.
 
-   If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
+   Ignore `GIT_BRANCH_NAME` and `BRANCH_NAME` for git purposes if they appear. The feature directory under `specs/` is only a folder name and is unrelated to git.
 
 3. **Create the spec feature directory**:
 
@@ -106,7 +106,7 @@ Given that feature description, do this:
 
    **IMPORTANT**:
    - You must only create one feature per `/speckit-specify` invocation
-   - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
+   - The spec directory name is only a folder name. All work stays on the `main` branch.
    - The spec directory and file are always created by this command, never by the hook
 
 4. Use `TEMPLATE_CONTENT` to understand required sections.
@@ -275,7 +275,7 @@ Report completion to the user with:
 - Checklist results summary
 - Readiness for the next phase (`/speckit-clarify` or `/speckit-plan`)
 
-**NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
+**NOTE:** This project uses a single-branch workflow. Branch creation is disabled; work always happens on `main`. Spec directory and file creation are handled by this core command.
 
 ## Quick Guidelines
 

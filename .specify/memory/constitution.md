@@ -1,6 +1,7 @@
 <!--
 Sync Impact Report
 Version change: unratified scaffold → 1.0.0
+Amendment 2026-11-15: 1.0.0 → 1.1.0 — added the single-branch (`main`) workflow rule.
 Modified principles: template placeholders → I. Clear, Focused Code; II. Secure Contract Boundaries; III. Tests Define Expected Behavior; IV. Verify Cross-Chain Integration; V. Maintainability and Simplicity
 Added sections: Engineering Constraints; Development and Quality Workflow
 Removed sections: none
@@ -34,6 +35,7 @@ Implementations MUST choose the simplest design that meets the stated requiremen
 
 ## Development and Quality Workflow
 
+- All work happens on the `main` branch. Agents, scripts, and hooks MUST NOT create, switch, rename, or delete git branches. A new feature gets a directory under `specs/`, not a new branch.
 - Before implementation, identify the user-visible behavior, affected contracts or modules, and the tests that will prove the behavior.
 - Before review or merge, run the relevant automated tests and build checks, and report the commands and outcomes. If a check cannot run, document the reason and remaining uncertainty.
 - Reviews MUST check correctness, authorization, failure handling, duplicate processing, and maintainability for the changed paths. Material deviations from these principles MUST be explained in the change description and resolved or explicitly accepted by project maintainers.
@@ -43,4 +45,4 @@ Implementations MUST choose the simplest design that meets the stated requiremen
 
 This constitution governs project implementation and review. Amendments MUST update this document, record the rationale, and increment the version according to semantic versioning: MAJOR for incompatible governance changes, MINOR for new or materially expanded principles or requirements, and PATCH for clarifications that do not change obligations. Changes to the constitution MUST be reviewed for conflicts with existing project guidance and identify any follow-up updates required. Every change review MUST assess compliance with these principles; any exception MUST state its scope, rationale, and remediation plan.
 
-**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): confirm original adoption date | **Last Amended**: 2026-11-15
+**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): confirm original adoption date | **Last Amended**: 2026-11-15
