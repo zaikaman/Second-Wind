@@ -20,30 +20,30 @@ description: "Task list for Second Wind (001-second-wind)"
 
 **Purpose**: Empty repo to a building skeleton on `main`.
 
-- [ ] T001 Create the monorepo directories `contracts/{src,test,script,lib}`, `web/`, `api/`, `ops/{e2e,lib,docs}` and a placeholder `.gitkeep` in each empty folder
-- [ ] T002 Write `.gitignore` covering `node_modules/`, `.env*` (but not `.env.example`), `contracts/out/`, `contracts/cache/`, `contracts/broadcast/`, `dist/`, `.vercel/`, `*.log`, `ops/demo.json`
-- [ ] T003 Write `.gitattributes` pinning `* text=auto eol=lf` and marking `*.sol`, `*.ts`, `*.tsx`, `*.md` as LF to stop the CRLF churn seen in earlier commits
-- [ ] T004 Create `README.md` skeleton with the product one-liner, the track name, and a chain table that names only testnets (Base Sepolia 84532, Unichain Sepolia 1301, Reactive Lasna 5318007)
-- [ ] T005 Add `LICENSE` (MIT) and a `SECURITY.md` stating this is a testnet demo with mock assets
-- [ ] T006 [P] Write `.env.example` with every variable from `quickstart.md` §1 and no real values
-- [ ] T007 [P] Initialize Foundry in `contracts/` and pin `solc = "0.8.29"`, `optimizer_runs = 200`, `via_ir = false` in `contracts/foundry.toml`
-- [ ] T008 [P] Add remappings `@reactive/=lib/reactive-lib-omni/`, `@openzeppelin/=lib/openzeppelin-contracts/`, `forge-std/=lib/forge-std/src/` in `contracts/foundry.toml`
-- [ ] T009 [P] Install `forge-std`, `OpenZeppelin/openzeppelin-contracts`, and `Reactive-Network/reactive-lib-omni` as submodules; commit `contracts/.gitmodules`
-- [ ] T010 [P] Configure `forge fmt` with `line_length = 120` and add a `make fmt` target
-- [ ] T011 [P] Scaffold `web/` with `npm create vite@latest . -- --template react-ts` and confirm `npm run dev` serves a page
-- [ ] T012 [P] Add Tailwind CSS and PostCSS to `web/`, plus design tokens in `web/src/styles/tokens.css` (ink, paper, success, pending, failed, relief, cash)
-- [ ] T013 [P] Add ESLint + Prettier to `web/` and `api/` with a shared config; add `lint` and `format` scripts
-- [ ] T014 [P] Install web runtime deps: `wagmi`, `viem`, `@rainbow-me/rainbowkit`, `@tanstack/react-query`, `react-router-dom`, `clsx`, `date-fns`
-- [ ] T015 [P] Scaffold `api/` as a TypeScript Node project with `express`, `zod`, `pino`, `pino-http`, `@supabase/supabase-js`, `viem`, `cors`, `helmet`, `express-rate-limit`
-- [ ] T016 [P] Add `api/Procfile` (`web: node dist/index.js`), `engines.node = "20.x"`, and a `build` script that runs `tsc`
-- [ ] T017 [P] Scaffold `ops/` with `tsx`, `viem`, `dotenv`, and its own `tsconfig.json`
-- [ ] T018 [P] Add `api` scripts: `dev`, `build`, `start`, `test`, `migrate`, `indexer:once`
-- [ ] T019 [P] Add `contracts/Makefile` targets: `build`, `test`, `test-fork`, `deploy-base`, `deploy-unichain`, `deploy-reactive`, `seed`, `crash1`, `crash2`
-- [ ] T020 [P] Add `.github/workflows/ci.yml` running on push to `main`: `forge fmt --check`, `forge build`, `forge test`, `tsc --noEmit` for `api` and `web`
-- [ ] T021 [P] Add `.editorconfig` (2-space TS, 4-space Solidity, LF) and enable format-on-save guidance in `CONTRIBUTING.md`
-- [ ] T022 [P] Create `ops/docs/addresses.md` with empty per-chain tables and a "do not edit by hand, written by deploy scripts" warning
-- [ ] T023 [P] Create `ops/docs/runbook.md` with section headers: Deploy, Fund, Seed, Demo, Measure, Recover
-- [ ] T024 Verify a clean clone builds: `git clone` to a temp dir, `forge build`, `npm ci` in `web` and `api`, then delete the temp clone
+- [X] T001 Create the monorepo directories `contracts/{src,test,script,lib}`, `web/`, `api/`, `ops/{e2e,lib,docs}` and a placeholder `.gitkeep` in each empty folder
+- [X] T002 Write `.gitignore` covering `node_modules/`, `.env*` (but not `.env.example`), `contracts/out/`, `contracts/cache/`, `contracts/broadcast/`, `dist/`, `.vercel/`, `*.log`, `ops/demo.json`
+- [X] T003 Write `.gitattributes` pinning `* text=auto eol=lf` and marking `*.sol`, `*.ts`, `*.tsx`, `*.md` as LF to stop the CRLF churn seen in earlier commits
+- [X] T004 Create `README.md` skeleton with the product one-liner, the track name, and a chain table that names only testnets (Base Sepolia 84532, Unichain Sepolia 1301, Reactive Lasna 5318007)
+- [X] T005 Add `LICENSE` (MIT) and a `SECURITY.md` stating this is a testnet demo with mock assets
+- [X] T006 [P] Write `.env.example` with every variable from `quickstart.md` §1 and no real values
+- [X] T007 [P] Initialize Foundry in `contracts/` and pin `solc = "0.8.29"`, `optimizer_runs = 200`, `via_ir = false` in `contracts/foundry.toml`
+- [X] T008 [P] Add remappings `@reactive/=lib/reactive-lib-omni/`, `@openzeppelin/=lib/openzeppelin-contracts/`, `forge-std/=lib/forge-std/src/` in `contracts/foundry.toml`
+- [X] T009 [P] Install `forge-std`, `OpenZeppelin/openzeppelin-contracts`, and `Reactive-Network/reactive-lib-omni` as submodules; commit `contracts/.gitmodules`
+- [X] T010 [P] Configure `forge fmt` with `line_length = 120` and add a `make fmt` target
+- [X] T011 [P] Scaffold `web/` with `npm create vite@latest . -- --template react-ts` and confirm `npm run dev` serves a page
+- [X] T012 [P] Add Tailwind CSS and PostCSS to `web/`, plus design tokens in `web/src/styles/tokens.css` (ink, paper, success, pending, failed, relief, cash)
+- [X] T013 [P] Add ESLint + Prettier to `web/` and `api/` with a shared config; add `lint` and `format` scripts
+- [X] T014 [P] Install web runtime deps: `wagmi`, `viem`, `@rainbow-me/rainbowkit`, `@tanstack/react-query`, `react-router-dom`, `clsx`, `date-fns`
+- [X] T015 [P] Scaffold `api/` as a TypeScript Node project with `express`, `zod`, `pino`, `pino-http`, `@supabase/supabase-js`, `viem`, `cors`, `helmet`, `express-rate-limit`
+- [X] T016 [P] Add `api/Procfile` (`web: node dist/index.js`), `engines.node = "20.x"`, and a `build` script that runs `tsc`
+- [X] T017 [P] Scaffold `ops/` with `tsx`, `viem`, `dotenv`, and its own `tsconfig.json`
+- [X] T018 [P] Add `api` scripts: `dev`, `build`, `start`, `test`, `migrate`, `indexer:once`
+- [X] T019 [P] Add `contracts/Makefile` targets: `build`, `test`, `test-fork`, `deploy-base`, `deploy-unichain`, `deploy-reactive`, `seed`, `crash1`, `crash2`
+- [X] T020 [P] Add `.github/workflows/ci.yml` running on push to `main`: `forge fmt --check`, `forge build`, `forge test`, `tsc --noEmit` for `api` and `web`
+- [X] T021 [P] Add `.editorconfig` (2-space TS, 4-space Solidity, LF) and enable format-on-save guidance in `CONTRIBUTING.md`
+- [X] T022 [P] Create `ops/docs/addresses.md` with empty per-chain tables and a "do not edit by hand, written by deploy scripts" warning
+- [X] T023 [P] Create `ops/docs/runbook.md` with section headers: Deploy, Fund, Seed, Demo, Measure, Recover
+- [X] T024 Verify a clean clone builds: `git clone` to a temp dir, `forge build`, `npm ci` in `web` and `api`, then delete the temp clone
 
 **Checkpoint**: one commit on `main`, CI green on an empty product.
 

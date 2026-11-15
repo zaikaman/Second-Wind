@@ -40,7 +40,7 @@ jobs:
           cache: npm
           cache-dependency-path: api/package-lock.json
       - run: npm ci
-      - run: npx tsc --noEmit
+      - run: npm run typecheck
 
   web:
     name: web (tsc)
@@ -56,4 +56,5 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npx tsc --noEmit
+      # bare `tsc --noEmit` is a no-op here: the scaffold uses project references.
+      - run: npm run typecheck
