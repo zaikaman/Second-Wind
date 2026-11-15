@@ -1,0 +1,20 @@
+/*
+ * Second Wind design tokens.
+ * One source of truth for colour: Tailwind reads these through
+ * `web/tailwind.config.js`, so components use class names, never hex values.
+ */
+
+:root {
+  /* surface */
+  --color-ink: #0b0e14; /* primary text and dark surfaces */
+  --color-paper: #f7f5ef; /* page background, warm off-white */
+
+  /* status */
+  --color-success: #1f7a4d; /* settled, healthy, live */
+  --color-pending: #b4780c; /* pending, partial, waiting on a branch */
+  --color-failed: #b3261e; /* failed, liquidated, lapsed */
+
+  /* the two payout branches, kept visually distinct everywhere */
+  --color-relief: #2f5bd0; /* Base: debt repayment on the weakest loan */
+  --color-cash: #0f7b8a; /* Unichain: cash paid to the borrower */
+}

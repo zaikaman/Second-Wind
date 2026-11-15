@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# environment (never commit secrets; keep the template)
+.env
+.env.*
+!.env.example
+
+# foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# builds
+dist/
+.vercel/
+
+# logs
+*.log
+
+# generated demo state
+ops/demo.json
+
+# editor / OS noise
+.DS_Store
+Thumbs.db

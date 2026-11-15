@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+coverage
+contracts/out
+contracts/cache
+contracts/broadcast
+contracts/lib
+package-lock.json
+*.min.js
