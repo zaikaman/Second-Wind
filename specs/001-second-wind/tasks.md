@@ -57,93 +57,93 @@ description: "Task list for Second Wind (001-second-wind)"
 
 ### Shared Solidity foundation
 
-- [ ] T025 [P] Implement `contracts/src/libraries/FeeMath.sol`: `lif(uint256 lltv)`, `penalty(uint256 repaidAssets, uint256 lltv)`, `split(uint256 fee, uint16 reliefShareBps)` with floor division and a documented rounding rule
-- [ ] T026 [P] Implement `contracts/src/libraries/HealthMath.sol`: `collateralValue`, `health`, `weakest`, `repayForTarget`, all 18-decimal fixed point and overflow-safe
-- [ ] T027 [P] Create `contracts/src/libraries/Topics.sol` with `TOPIC_POLICY_CREATED`, `TOPIC_PREMIUM_PAID`, `TOPIC_STATUS_CHANGED`, `TOPIC_LIQUIDATE`, `TOPIC_RELIEF_APPLIED`, `TOPIC_CLAIM_PAID` as `bytes32` constants
-- [ ] T028 [P] Write `contracts/src/interfaces/IMorpho.sol` with only the members used: `position`, `idToMarketParams`, `repay`, `liquidate`, `supplyCollateral`, `borrow`, `createMarket`, and the `MarketParams` struct
-- [ ] T029 [P] Write `contracts/src/interfaces/IOracle.sol` with `price() external view returns (uint256)`
-- [ ] T030 [P] Write `contracts/src/interfaces/IUniswapV3Pool.sol` with `slot0`, `token0`, `token1`, `liquidity`
-- [ ] T031 [P] Write `contracts/src/interfaces/IUniswapV3.sol` with minimal `IUniswapV3Factory`, `INonfungiblePositionManager`, and `ISwapRouter02` surfaces
-- [ ] T032 [P] Implement `contracts/src/mocks/MockERC20.sol`: 18 decimals, `mint`, `burn`, standard ERC20
-- [ ] T033 [P] Implement `contracts/src/mocks/MockOracle.sol`: owner-settable `price()`, emits `PriceSet(uint256)`
-- [ ] T034 [P] Implement `contracts/src/mocks/MockSystemContract.sol`: records `subscribe`/`unsubscribe` and emits the same `CallbackRequest` shape the real system contract emits, so `react()` tests run locally
-- [ ] T035 [P] Implement `contracts/src/mocks/ReentrantReceiver.sol` that re-enters `settleCascade` and `payClaim` on receive
-- [ ] T036 Create `contracts/test/utils/TestBase.sol`: deploys the mock system at `0x8888…` via `vm.etch`, deploys tokens, registry, pool, vault, and reactive contract, and funds each
-- [ ] T037 Create `contracts/test/utils/Fixtures.sol` with the canonical demo numbers (loan A 100/180,000, loan B 20/34,000, twin B′, price 2500, lltv 0.86, cap 5,000, share 60%)
+- [X] T025 [P] Implement `contracts/src/libraries/FeeMath.sol`: `lif(uint256 lltv)`, `penalty(uint256 repaidAssets, uint256 lltv)`, `split(uint256 fee, uint16 reliefShareBps)` with floor division and a documented rounding rule
+- [X] T026 [P] Implement `contracts/src/libraries/HealthMath.sol`: `collateralValue`, `health`, `weakest`, `repayForTarget`, all 18-decimal fixed point and overflow-safe
+- [X] T027 [P] Create `contracts/src/libraries/Topics.sol` with `TOPIC_POLICY_CREATED`, `TOPIC_PREMIUM_PAID`, `TOPIC_STATUS_CHANGED`, `TOPIC_LIQUIDATE`, `TOPIC_RELIEF_APPLIED`, `TOPIC_CLAIM_PAID` as `bytes32` constants
+- [X] T028 [P] Write `contracts/src/interfaces/IMorpho.sol` with only the members used: `position`, `idToMarketParams`, `repay`, `liquidate`, `supplyCollateral`, `borrow`, `createMarket`, and the `MarketParams` struct
+- [X] T029 [P] Write `contracts/src/interfaces/IOracle.sol` with `price() external view returns (uint256)`
+- [X] T030 [P] Write `contracts/src/interfaces/IUniswapV3Pool.sol` with `slot0`, `token0`, `token1`, `liquidity`
+- [X] T031 [P] Write `contracts/src/interfaces/IUniswapV3.sol` with minimal `IUniswapV3Factory`, `INonfungiblePositionManager`, and `ISwapRouter02` surfaces
+- [X] T032 [P] Implement `contracts/src/mocks/MockERC20.sol`: 18 decimals, `mint`, `burn`, standard ERC20
+- [X] T033 [P] Implement `contracts/src/mocks/MockOracle.sol`: owner-settable `price()`, emits `PriceSet(uint256)`
+- [X] T034 [P] Implement `contracts/src/mocks/MockSystemContract.sol`: records `subscribe`/`unsubscribe` and emits the same `CallbackRequest` shape the real system contract emits, so `react()` tests run locally
+- [X] T035 [P] Implement `contracts/src/mocks/ReentrantReceiver.sol` that re-enters `settleCascade` and `payClaim` on receive
+- [X] T036 Create `contracts/test/utils/TestBase.sol`: deploys the mock system at `0x8888…` via `vm.etch`, deploys tokens, registry, pool, vault, and reactive contract, and funds each
+- [X] T037 Create `contracts/test/utils/Fixtures.sol` with the canonical demo numbers (loan A 100/180,000, loan B 20/34,000, twin B′, price 2500, lltv 0.86, cap 5,000, share 60%)
 
 ### `PolicyRegistry` core (needed by all three stories)
 
-- [ ] T038 Declare in `contracts/src/base/PolicyRegistry.sol`: `Policy` struct, `Status` enum, all custom errors, and the three events exactly as specified in `contracts/policy-registry.md`
-- [ ] T039 Implement the `PolicyRegistry` constructor (`coverAsset`, `morpho`) and immutables, with `Ownable`
-- [ ] T040 Implement `createPolicy` validation: market exists, `loanToken == coverAsset`, position open, health > 1e18, no live policy for `loanKey`, ≤ 8 active policies, cap/share/target/term ranges
-- [ ] T041 Implement `createPolicy` effects: ceilings, `premiumPerSecond`, `paidThrough`, premium pull to the pool, `policyOfLoan`, `policiesOf`, `PolicyCreated`
-- [ ] T042 Implement views: `getPolicy`, `policyOfLoan`, `policiesOf`, `reliefRemaining`, `activePolicyCount`, `isCoverable`
-- [ ] T043 Implement `setCoveragePool` (one-time, `AlreadySet`) and the `onlyCoveragePool` modifier
-- [ ] T044 Implement `recordRelief` with `CapExceeded` when `reliefUsed + amount > reliefCeiling`
-- [ ] T045 Implement `payPremium`: `NotBorrower`, `PolicyNotLive`, `AmountTooSmall`, term cap, transfer to the pool, `PremiumPaid`
-- [ ] T046 Implement `pausePolicy`, `resumePolicy`, `cancelPolicy` with borrower-only checks, terminal cancel, and `cancelledAtBlock = block.number`
-- [ ] T047 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` covering every revert path in T040 with a named test per revert
-- [ ] T048 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` premium tests: formula, truncation, 365-day cap, `AmountTooSmall`, transfer lands in the pool
-- [ ] T049 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` status tests: pause blocks `isCoverable`, resume restores, cancel is terminal and sets the block number, non-borrower calls revert
-- [ ] T050 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` fuzz test: random cap/share/target inside ranges always yields `cashCeiling + reliefCeiling == coverageCap`
+- [X] T038 Declare in `contracts/src/base/PolicyRegistry.sol`: `Policy` struct, `Status` enum, all custom errors, and the three events exactly as specified in `contracts/policy-registry.md`
+- [X] T039 Implement the `PolicyRegistry` constructor (`coverAsset`, `morpho`) and immutables, with `Ownable`
+- [X] T040 Implement `createPolicy` validation: market exists, `loanToken == coverAsset`, position open, health > 1e18, no live policy for `loanKey`, ≤ 8 active policies, cap/share/target/term ranges
+- [X] T041 Implement `createPolicy` effects: ceilings, `premiumPerSecond`, `paidThrough`, premium pull to the pool, `policyOfLoan`, `policiesOf`, `PolicyCreated`
+- [X] T042 Implement views: `getPolicy`, `policyOfLoan`, `policiesOf`, `reliefRemaining`, `activePolicyCount`, `isCoverable`
+- [X] T043 Implement `setCoveragePool` (one-time, `AlreadySet`) and the `onlyCoveragePool` modifier
+- [X] T044 Implement `recordRelief` with `CapExceeded` when `reliefUsed + amount > reliefCeiling`
+- [X] T045 Implement `payPremium`: `NotBorrower`, `PolicyNotLive`, `AmountTooSmall`, term cap, transfer to the pool, `PremiumPaid`
+- [X] T046 Implement `pausePolicy`, `resumePolicy`, `cancelPolicy` with borrower-only checks, terminal cancel, and `cancelledAtBlock = block.number`
+- [X] T047 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` covering every revert path in T040 with a named test per revert
+- [X] T048 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` premium tests: formula, truncation, 365-day cap, `AmountTooSmall`, transfer lands in the pool
+- [X] T049 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` status tests: pause blocks `isCoverable`, resume restores, cancel is terminal and sets the block number, non-borrower calls revert
+- [X] T050 [P] Write `contracts/test/unit/PolicyRegistry.t.sol` fuzz test: random cap/share/target inside ranges always yields `cashCeiling + reliefCeiling == coverageCap`
 
 ### Destination contract skeletons
 
-- [ ] T051 Create `contracts/src/base/CoveragePool.sol`: inherit `AbstractCallback` + `ReentrancyGuard`, constructor wiring, `receive`, `coverDebt`, `reserveBalance`
-- [ ] T052 Add to `CoveragePool`: `usedRuns` mapping, `DuplicateRun` error, `nonReentrant` on the settlement entry point
-- [ ] T053 Create `contracts/src/unichain/ClaimVault.sol`: inherit `AbstractCallback` + `ReentrancyGuard`, `Terms` struct, `registerPolicy` with first-write-wins idempotency, `TermsMismatch`
-- [ ] T054 Add to `ClaimVault`: `payClaim` signature, `usedRuns`, `cashPaid`, `lastPaidThrough`, reserve balance view, `coverDebt`
-- [ ] T055 [P] Write `contracts/test/unit/Auth.t.sol`: both contracts reject a direct EOA call (`NotAuthorized`) and a call from the proxy with a different injected sender (`CallbackNotAuthorized`)
-- [ ] T056 [P] Write `contracts/test/unit/Auth.t.sol`: `ClaimVault.payClaim` on an unregistered policy reverts `UnknownPolicy` and changes no state
+- [X] T051 Create `contracts/src/base/CoveragePool.sol`: inherit `AbstractCallback` + `ReentrancyGuard`, constructor wiring, `receive`, `coverDebt`, `reserveBalance`
+- [X] T052 Add to `CoveragePool`: `usedRuns` mapping, `DuplicateRun` error, `nonReentrant` on the settlement entry point
+- [X] T053 Create `contracts/src/unichain/ClaimVault.sol`: inherit `AbstractCallback` + `ReentrancyGuard`, `Terms` struct, `registerPolicy` with first-write-wins idempotency, `TermsMismatch`
+- [X] T054 Add to `ClaimVault`: `payClaim` signature, `usedRuns`, `cashPaid`, `lastPaidThrough`, reserve balance view, `coverDebt`
+- [X] T055 [P] Write `contracts/test/unit/Auth.t.sol`: both contracts reject a direct EOA call (`NotAuthorized`) and a call from the proxy with a different injected sender (`CallbackNotAuthorized`)
+- [X] T056 [P] Write `contracts/test/unit/Auth.t.sol`: `ClaimVault.payClaim` on an unregistered policy reverts `UnknownPolicy` and changes no state
 
 ### Reactive contract core
 
-- [ ] T057 Create `contracts/src/reactive/SecondWindReactive.sol`: inherit `AbstractReactive` + `Ownable`, payable constructor, six `SYSTEM.subscribe` calls
-- [ ] T058 Implement the `react()` router: `onlySystem`, `topic0` dispatch, `contractAddress` witness filter, `opCode` guard before every decode, silent return on anything unknown
-- [ ] T059 Implement mirror handlers `_onPolicyCreated`, `_onPremiumPaid`, `_onStatusChanged` writing `policies`, `policyOfLoan`, `policiesOf`
-- [ ] T060 Implement reconciliation handlers `_onReliefApplied`, `_onClaimPaid` that release reservations and advance `reliefUsed` / `cashPaid`
-- [ ] T061 Implement `_requestRelief`, `_requestCash`, `_requestRegistration` using `SYSTEM.requestCallbackV_1_0` with `address(0)` as the first encoded argument
-- [ ] T062 Implement one-time setters `setReliefRecipient`, `setCashRecipient`, `setSettlementWitnesses`, each reverting `AlreadySet` on a second call
-- [ ] T063 [P] Write `contracts/test/unit/Reactive.t.sol`: six subscriptions are recorded with the exact criteria from `contracts/reactive-contract.md`
-- [ ] T064 [P] Write `contracts/test/unit/Reactive.t.sol`: `react()` from an EOA reverts `NotAuthorized`; unknown `topic0` returns without revert; wrong `opCode` returns without revert
-- [ ] T065 [P] Write `contracts/test/unit/Reactive.t.sol`: mirror updates from `PolicyCreated`, `PremiumPaid`, `PolicyStatusChanged`, including a same-topic event from an unrelated contract being ignored
-- [ ] T066 [P] Write `contracts/test/unit/Topics.t.sol`: every constant equals `keccak256` of its signature string, so a typo cannot ship
+- [X] T057 Create `contracts/src/reactive/SecondWindReactive.sol`: inherit `AbstractReactive` + `Ownable`, payable constructor, six `SYSTEM.subscribe` calls
+- [X] T058 Implement the `react()` router: `onlySystem`, `topic0` dispatch, `contractAddress` witness filter, `opCode` guard before every decode, silent return on anything unknown
+- [X] T059 Implement mirror handlers `_onPolicyCreated`, `_onPremiumPaid`, `_onStatusChanged` writing `policies`, `policyOfLoan`, `policiesOf`
+- [X] T060 Implement reconciliation handlers `_onReliefApplied`, `_onClaimPaid` that release reservations and advance `reliefUsed` / `cashPaid`
+- [X] T061 Implement `_requestRelief`, `_requestCash`, `_requestRegistration` using `SYSTEM.requestCallbackV_1_0` with `address(0)` as the first encoded argument
+- [X] T062 Implement one-time setters `setReliefRecipient`, `setCashRecipient`, `setSettlementWitnesses`, each reverting `AlreadySet` on a second call
+- [X] T063 [P] Write `contracts/test/unit/Reactive.t.sol`: six subscriptions are recorded with the exact criteria from `contracts/reactive-contract.md`
+- [X] T064 [P] Write `contracts/test/unit/Reactive.t.sol`: `react()` from an EOA reverts `NotAuthorized`; unknown `topic0` returns without revert; wrong `opCode` returns without revert
+- [X] T065 [P] Write `contracts/test/unit/Reactive.t.sol`: mirror updates from `PolicyCreated`, `PremiumPaid`, `PolicyStatusChanged`, including a same-topic event from an unrelated contract being ignored
+- [X] T066 [P] Write `contracts/test/unit/Topics.t.sol`: every constant equals `keccak256` of its signature string, so a typo cannot ship
 
 ### Web foundation
 
-- [ ] T067 [P] Create `web/src/config/chains.ts` with `baseSepolia` and `unichainSepolia` viem chain objects reading RPC URLs from `import.meta.env`
-- [ ] T068 [P] Create `web/src/config/addresses.ts`: a typed address book that throws at boot when a required address is the zero address in production
-- [ ] T069 [P] Generate `web/src/config/abis/*.ts` from `forge inspect <Contract> abi --json`, one file per contract, with a comment naming the source commit
-- [ ] T070 [P] Create `web/src/providers/AppProviders.tsx` wiring `WagmiProvider`, `QueryClientProvider`, and `RainbowKitProvider` with the two testnet chains
-- [ ] T071 [P] Create `web/src/components/Layout.tsx`: header, testnet badge, wallet button, footer with "demo on testnets, mock assets" notice
-- [ ] T072 [P] Create `web/src/lib/format.ts`: `formatAmount` (fixed 2–4 dp, thousands separators), `formatHealth` (3 dp), `formatBps`, `formatDuration`, `truncateAddress`
-- [ ] T073 [P] Create `web/src/lib/explorer.ts`: `txUrl`, `addressUrl` for Base Sepolia, Unichain Sepolia, and Lasna, with a null-safe fallback
-- [ ] T074 Create `web/src/App.tsx` and `web/src/routes.tsx` with five routes: `/`, `/cover/new`, `/policies/:id`, `/receipts`, `/receipts/:runId`, `/proof`, plus a 404
+- [X] T067 [P] Create `web/src/config/chains.ts` with `baseSepolia` and `unichainSepolia` viem chain objects reading RPC URLs from `import.meta.env`
+- [X] T068 [P] Create `web/src/config/addresses.ts`: a typed address book that throws at boot when a required address is the zero address in production
+- [X] T069 [P] Generate `web/src/config/abis/*.ts` from `forge inspect <Contract> abi --json`, one file per contract, with a comment naming the source commit
+- [X] T070 [P] Create `web/src/providers/AppProviders.tsx` wiring `WagmiProvider`, `QueryClientProvider`, and `RainbowKitProvider` with the two testnet chains
+- [X] T071 [P] Create `web/src/components/Layout.tsx`: header, testnet badge, wallet button, footer with "demo on testnets, mock assets" notice
+- [X] T072 [P] Create `web/src/lib/format.ts`: `formatAmount` (fixed 2–4 dp, thousands separators), `formatHealth` (3 dp), `formatBps`, `formatDuration`, `truncateAddress`
+- [X] T073 [P] Create `web/src/lib/explorer.ts`: `txUrl`, `addressUrl` for Base Sepolia, Unichain Sepolia, and Lasna, with a null-safe fallback
+- [X] T074 Create `web/src/App.tsx` and `web/src/routes.tsx` with five routes: `/`, `/cover/new`, `/policies/:id`, `/receipts`, `/receipts/:runId`, `/proof`, plus a 404
 
 ### API foundation
 
-- [ ] T075 [P] Create `api/src/config/env.ts`: a Zod schema for every variable, fail fast with a readable message, export a typed `env`
-- [ ] T076 [P] Create `api/src/db/supabase.ts`: service-role client with a comment that this key never reaches the browser
-- [ ] T077 [P] Write `api/src/db/migrations/001_init.sql` with the exact DDL from `data-model.md` §2, including enums and indexes
-- [ ] T078 [P] Create `api/src/db/migrate.ts`: advisory-lock migration runner, idempotent, called once at boot
-- [ ] T079 [P] Create `api/src/lib/rpc.ts`: viem public clients for the three chains with timeout, retry, and a `head()` helper
-- [ ] T080 [P] Create `api/src/lib/logger.ts` and request-id middleware
-- [ ] T081 Create `api/src/app.ts`: Express app with helmet, CORS allow-list, rate limit, JSON body limit, routes, and one error middleware that emits `{error:{code,message}}`
-- [ ] T082 Create `api/src/index.ts`: run migrations, start the indexer, listen on `PORT`, handle SIGTERM with a graceful 10-second drain
-- [ ] T083 Implement `api/src/routes/health.ts` returning the shape in `contracts/http-api.md`, including per-contract `native`, `debt`, `reserves`, `ok`
-- [ ] T084 [P] Write `api/test/health.test.ts`: 200, correct keys, `Cache-Control: no-store`, and `ok: false` when a mocked debt is non-zero
+- [X] T075 [P] Create `api/src/config/env.ts`: a Zod schema for every variable, fail fast with a readable message, export a typed `env`
+- [X] T076 [P] Create `api/src/db/supabase.ts`: service-role client with a comment that this key never reaches the browser
+- [X] T077 [P] Write `api/src/db/migrations/001_init.sql` with the exact DDL from `data-model.md` §2, including enums and indexes
+- [X] T078 [P] Create `api/src/db/migrate.ts`: advisory-lock migration runner, idempotent, called once at boot
+- [X] T079 [P] Create `api/src/lib/rpc.ts`: viem public clients for the three chains with timeout, retry, and a `head()` helper
+- [X] T080 [P] Create `api/src/lib/logger.ts` and request-id middleware
+- [X] T081 Create `api/src/app.ts`: Express app with helmet, CORS allow-list, rate limit, JSON body limit, routes, and one error middleware that emits `{error:{code,message}}`
+- [X] T082 Create `api/src/index.ts`: run migrations, start the indexer, listen on `PORT`, handle SIGTERM with a graceful 10-second drain
+- [X] T083 Implement `api/src/routes/health.ts` returning the shape in `contracts/http-api.md`, including per-contract `native`, `debt`, `reserves`, `ok`
+- [X] T084 [P] Write `api/test/health.test.ts`: 200, correct keys, `Cache-Control: no-store`, and `ok: false` when a mocked debt is non-zero
 
 ### Ops foundation
 
-- [ ] T085 [P] Create `ops/lib/env.ts` and `ops/lib/clients.ts`: wallet + public clients for Base, Unichain, Lasna, reading the repo `.env`
-- [ ] T086 [P] Create `ops/lib/addresses.ts` that reads `ops/addresses.json` and fails loudly if a required key is missing
-- [ ] T087 [P] Create `ops/lib/format.ts` for consistent console tables and JSON evidence output
+- [X] T085 [P] Create `ops/lib/env.ts` and `ops/lib/clients.ts`: wallet + public clients for Base, Unichain, Lasna, reading the repo `.env`
+- [X] T086 [P] Create `ops/lib/addresses.ts` that reads `ops/addresses.json` and fails loudly if a required key is missing
+- [X] T087 [P] Create `ops/lib/format.ts` for consistent console tables and JSON evidence output
 
 ### Deploy script skeletons
 
-- [ ] T088 Create `contracts/script/helpers/Json.s.sol` with `writeAddress(key, addr)` that merges into `ops/addresses.json` via `vm.writeJson`
-- [ ] T089 Create `contracts/script/DeployBase.s.sol` deploying `mWETH`, `mUSDC`, and `PolicyRegistry`, writing all three addresses
-- [ ] T090 Create `contracts/script/DeployReactive.s.sol` (payable), `DeployBase.s.sol:DeployPool`, `DeployUnichain.s.sol`, and `Wire.s.sol` with the exact order from `quickstart.md` §3 and an assertion after each step
+- [X] T088 Create `contracts/script/helpers/Json.s.sol` with `writeAddress(key, addr)` that merges into `ops/addresses.json` via `vm.writeJson`
+- [X] T089 Create `contracts/script/DeployBase.s.sol` deploying `mWETH`, `mUSDC`, and `PolicyRegistry`, writing all three addresses
+- [X] T090 Create `contracts/script/DeployReactive.s.sol` (payable), `DeployBase.s.sol:DeployPool`, `DeployUnichain.s.sol`, and `Wire.s.sol` with the exact order from `quickstart.md` §3 and an assertion after each step
 
 **Checkpoint**: `forge test` green, `tsc --noEmit` green in both apps, and a deploy script dry-run prints the intended order without broadcasting.
 

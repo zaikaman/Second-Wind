@@ -98,7 +98,7 @@ The order is forced by two immutable links: each callback contract stores the re
 
 ```bash
 # 1. registry (Base)
-forge script script/DeployBase.s.sol --rpc-url $BASE_SEPOLIA_RPC --broadcast
+forge script script/DeployBase.s.sol:DeployBase --rpc-url $BASE_SEPOLIA_RPC --broadcast
 
 # 2. reactive contract (Lasna) — needs the registry address
 forge script script/DeployReactive.s.sol --rpc-url $LASNA_RPC --broadcast --value 0.5ether
@@ -110,7 +110,7 @@ forge script script/DeployBase.s.sol:DeployPool --rpc-url $BASE_SEPOLIA_RPC --br
 forge script script/DeployUnichain.s.sol --rpc-url $UNICHAIN_SEPOLIA_RPC --broadcast
 
 # 5. wire one-time setters, then renounce both owners
-forge script script/Wire.s.sol --rpc-url $LASNA_RPC --broadcast
+forge script script/Wire.s.sol:Wire --rpc-url $LASNA_RPC --broadcast
 forge script script/Wire.s.sol:WireRegistry --rpc-url $BASE_SEPOLIA_RPC --broadcast
 ```
 

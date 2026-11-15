@@ -9,7 +9,7 @@ include $(ENV_FILE)
 export
 endif
 
-.PHONY: build test test-fork deploy-base deploy-unichain deploy-reactive seed crash1 crash2 fmt
+.PHONY: build test test-fork deploy-base deploy-reactive deploy-pool deploy-unichain wire wire-registry seed crash1 crash2 fmt
 
 build:
 	forge build
@@ -20,14 +20,24 @@ test:
 test-fork:
 	forge test --match-path 'test/fork/*' --fork-url $(BASE_SEPOLIA_RPC) -vv
 
+# Each script file holds more than one contract, so the contract must be named explicitly.
 deploy-base:
-	forge script script/DeployBase.s.sol --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
-
-deploy-unichain:
-	forge script script/DeployUnichain.s.sol --rpc-url $(UNICHAIN_SEPOLIA_RPC) --broadcast
+	forge script script/DeployBase.s.sol:DeployBase --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
 
 deploy-reactive:
-	forge script script/DeployReactive.s.sol --rpc-url $(LASNA_RPC) --broadcast --value 0.5ether
+	forge script script/DeployReactive.s.sol:DeployReactive --rpc-url $(LASNA_RPC) --broadcast
+
+deploy-pool:
+	forge script script/DeployBase.s.sol:DeployPool --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
+
+deploy-unichain:
+	forge script script/DeployUnichain.s.sol:DeployUnichain --rpc-url $(UNICHAIN_SEPOLIA_RPC) --broadcast
+
+wire:
+	forge script script/Wire.s.sol:Wire --rpc-url $(LASNA_RPC) --broadcast
+
+wire-registry:
+	forge script script/Wire.s.sol:WireRegistry --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
 
 seed:
 	forge script script/SeedMarket.s.sol --rpc-url $(BASE_SEPOLIA_RPC) --broadcast
