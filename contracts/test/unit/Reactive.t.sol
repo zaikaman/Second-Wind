@@ -56,6 +56,21 @@ contract ReactiveTest is TestBase {
         assertEq(s.topic0, uint256(Topics.CLAIM_PAID));
     }
 
+    /// @notice The network matches every topic position literally unless it is `REACTIVE_IGNORE`,
+    ///         so a zero in topics 1-3 would silently drop every event this contract watches.
+    ///         Mirror of `AbstractReactive.REACTIVE_IGNORE`, which is `internal` to the base.
+    uint256 internal constant REACTIVE_IGNORE_TOPIC =
+        0xa65f96fc951c35ead38878e0f0b7a3c744a6f5ccc1476b313353ce31712313ad;
+
+    function test_SubscriptionTopicsUseWildcard() public view {
+        for (uint256 i = 0; i < 6; ++i) {
+            MockSystemContract.Subscription memory s = system.subscriptionAt(i);
+            assertEq(s.topic1, REACTIVE_IGNORE_TOPIC, "topic1 not a wildcard");
+            assertEq(s.topic2, REACTIVE_IGNORE_TOPIC, "topic2 not a wildcard");
+            assertEq(s.topic3, REACTIVE_IGNORE_TOPIC, "topic3 not a wildcard");
+        }
+    }
+
     // -------------------------------------------------------------------------------------
     // Router
     // -------------------------------------------------------------------------------------
@@ -143,7 +158,11 @@ contract ReactiveTest is TestBase {
         MockSystemContract.CallbackRecord memory cb = system.callbackAt(0);
         assertEq(cb.chainId, UNICHAIN_CHAIN_ID);
         assertEq(cb.recipient, address(vault));
-        assertEq(cb.gasLimit, 200_000);
+        assertEq(cb.gasLimit, 500_000);
+        // The Unichain proxy withholds `_extraGas()` (80,000) plus `_maxChargeGas()` (50,000) before
+        // forwarding. A 200,000 request therefore left ~70,000 for `registerPolicy`, which needs
+        // ~93,000, and the on-chain call reverted with `CallbackFailure`.
+        assertGt(cb.gasLimit - 130_000, 200_000, "registration headroom too thin for the proxy overhead");
     }
 
     function test_PolicyCreated_FromUnrelatedContract_IsIgnored() public {

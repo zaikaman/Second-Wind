@@ -53,28 +53,31 @@ contract Crash is Json {
             weth: requireAddress("base.mWETH"),
             oracle: requireAddress("base.MorphoOracle"),
             marketId: _toBytes32(readString("base.MarketId")),
-            swapIn: vm.envOr("CRASH_WETH_IN", uint256(200e18)),
+            swapIn: vm.envOr("CRASH_WETH_IN", uint256(41_800_000_000_000_000)),
             targetPrice: vm.envOr("CRASH1_TARGET_PRICE", uint256(2050e36)),
             repaidAssets: vm.envOr("CRASH_REPAID_ASSETS", uint256(90_000e18))
         });
     }
 
     /// @dev Sells collateral into the pool. The oracle reads spot, so the price moves with the pool.
+    ///      The default input is sized for the default `SEED_LIQUIDITY` (1,000 tokens a side, which
+    ///      leaves ~0.4 mWETH in the pool at 2500); a larger seed needs a proportionally larger swap.
     function _pushPriceDown(Config memory config) private {
+        address deployer = vm.addr(config.deployerKey);
         vm.startBroadcast(config.deployerKey);
-        MockERC20(config.weth).mint(address(this), config.swapIn);
+        MockERC20(config.weth).mint(deployer, config.swapIn);
         MockERC20(config.weth).approve(config.router, config.swapIn);
         ISwapRouter02(config.router)
             .exactInputSingle(
                 ISwapRouter02.ExactInputSingleParams({
-                    tokenIn: config.weth,
-                    tokenOut: config.usdc,
-                    fee: FEE_TIER,
-                    recipient: address(this),
-                    amountIn: config.swapIn,
-                    amountOutMinimum: 0,
-                    sqrtPriceLimitX96: 0
-                })
+                tokenIn: config.weth,
+                tokenOut: config.usdc,
+                fee: FEE_TIER,
+                recipient: deployer,
+                amountIn: config.swapIn,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            })
             );
         vm.stopBroadcast();
 
@@ -94,7 +97,9 @@ contract Crash is Json {
 
         vm.startBroadcast(config.liquidatorKey);
         MockERC20(config.usdc).mint(vm.addr(config.liquidatorKey), config.repaidAssets);
-        MockERC20(config.usdc).approve(config.morpho, config.repaidAssets);
+        // Morpho converts the shares back to assets and pulls that amount, which is a few wei above
+        // `repaidAssets` because of the round-trip. Approving exactly the debt reverts.
+        MockERC20(config.usdc).approve(config.morpho, type(uint256).max);
         vm.recordLogs();
         morpho.liquidate(morpho.idToMarketParams(config.marketId), config.borrower, 0, repaidShares, "");
         Vm.Log[] memory logs = vm.getRecordedLogs();

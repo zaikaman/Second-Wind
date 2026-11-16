@@ -18,5 +18,13 @@ export default tseslint.config(
       ...sharedRules,
     },
   },
+  {
+    // Plain-Node build helpers run outside the TypeScript program, so they need Node's globals here.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
+    },
+  },
   eslintConfigPrettier,
 );

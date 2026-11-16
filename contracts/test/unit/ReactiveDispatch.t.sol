@@ -33,11 +33,16 @@ contract ReactiveDispatchTest is TestBase {
 
         assertEq(relief.chainId, BASE_CHAIN_ID);
         assertEq(relief.recipient, address(pool));
-        assertEq(relief.gasLimit, 400_000);
+        assertEq(relief.gasLimit, 900_000);
 
         assertEq(cash.chainId, UNICHAIN_CHAIN_ID);
         assertEq(cash.recipient, address(vault));
-        assertEq(cash.gasLimit, 300_000);
+        assertEq(cash.gasLimit, 700_000);
+
+        // Both destination proxies withhold `_extraGas()` (80,000) plus `_maxChargeGas()` (50,000)
+        // before forwarding, so a limit has to clear that 130,000 on top of the recipient's work.
+        assertGt(relief.gasLimit - 130_000, 400_000, "relief headroom too thin");
+        assertGt(cash.gasLimit - 130_000, 300_000, "cash headroom too thin");
 
         Callbacks.Relief memory r = Callbacks.relief(relief.payload);
         Callbacks.Cash memory c = Callbacks.cash(cash.payload);

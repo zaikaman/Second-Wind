@@ -7,7 +7,7 @@ import { logger } from './lib/logger.js';
 import { createHealthProvider } from './services/health.js';
 import { createClaimsStore } from './services/claims-store.js';
 import { createPoliciesStore } from './services/policies-store.js';
-import { createPositionReader } from './services/positions.js';
+import { createPositionReader, createHealthAtReader } from './services/positions.js';
 import { createStatsStore } from './services/stats-store.js';
 import { startIndexer } from './services/indexer.js';
 import { formatUnits } from 'viem';
@@ -100,11 +100,12 @@ async function main(): Promise<void> {
     addresses: {
       base: { registry: addresses.registry, morpho: addresses.morpho, coveragePool: addresses.coveragePool },
       unichain: { claimVault: addresses.claimVault },
-      reactive: { contract: addresses.reactive },
+      reactive: { contract: addresses.reactive, system: config.REACTIVE_SYSTEM_CONTRACT as Hex },
     },
     startBlocks: { base: config.INDEXER_START_BASE, unichain: config.INDEXER_START_UNICHAIN, reactive: config.INDEXER_START_REACTIVE },
     confirmations: config.INDEXER_CONFIRMATIONS,
     pollIntervalMs: config.INDEXER_POLL_MS,
+    readHealthBefore: createHealthAtReader(clients.base, addresses.morpho),
   });
 
   const server = app.listen(config.PORT, () => {

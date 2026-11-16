@@ -49,9 +49,13 @@ contract SecondWindReactive is AbstractReactive, Ownable {
 
     /// @notice A second liquidation inside this window converts the whole fee into relief.
     uint64 internal constant CASCADE_WINDOW = 60;
-    uint64 internal constant RELIEF_GAS_LIMIT = 400_000;
-    uint64 internal constant CASH_GAS_LIMIT = 300_000;
-    uint64 internal constant REGISTRATION_GAS_LIMIT = 200_000;
+    /// @notice Gas each callback asks for. The destination proxy withholds `_extraGas()` (80,000) plus
+    ///         `_maxChargeGas()` (50,000) before forwarding, so these must clear that 130,000 overhead
+    ///         on top of the work the recipient does. Registration needs ~93,000 of real work and
+    ///         failed at 200,000; the settlement callbacks are heavier still.
+    uint64 internal constant RELIEF_GAS_LIMIT = 900_000;
+    uint64 internal constant CASH_GAS_LIMIT = 700_000;
+    uint64 internal constant REGISTRATION_GAS_LIMIT = 500_000;
 
     event ReliefRecipientSet(address indexed recipient);
     event CashRecipientSet(address indexed recipient);
@@ -104,12 +108,41 @@ contract SecondWindReactive is AbstractReactive, Ownable {
 
         // Settlement contracts do not exist yet; wildcard contract subscriptions plus a stored
         // witness keep the loop closed without redeploying this contract later.
-        SYSTEM.subscribe(baseChainId_, policyRegistry_, uint256(Topics.POLICY_CREATED), 0, 0, 0);
-        SYSTEM.subscribe(baseChainId_, policyRegistry_, uint256(Topics.PREMIUM_PAID), 0, 0, 0);
-        SYSTEM.subscribe(baseChainId_, policyRegistry_, uint256(Topics.STATUS_CHANGED), 0, 0, 0);
-        SYSTEM.subscribe(baseChainId_, morpho_, uint256(Topics.LIQUIDATE), 0, 0, 0);
-        SYSTEM.subscribe(baseChainId_, address(0), uint256(Topics.RELIEF_APPLIED), 0, 0, 0);
-        SYSTEM.subscribe(unichainChainId_, address(0), uint256(Topics.CLAIM_PAID), 0, 0, 0);
+        // Topic positions 1-3 must be REACTIVE_IGNORE: the network treats zero as a literal
+        // criterion, so `0` there would only match logs whose indexed topics are zero.
+        SYSTEM.subscribe(
+            baseChainId_,
+            policyRegistry_,
+            uint256(Topics.POLICY_CREATED),
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+        SYSTEM.subscribe(
+            baseChainId_,
+            policyRegistry_,
+            uint256(Topics.PREMIUM_PAID),
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+        SYSTEM.subscribe(
+            baseChainId_,
+            policyRegistry_,
+            uint256(Topics.STATUS_CHANGED),
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+        SYSTEM.subscribe(
+            baseChainId_, morpho_, uint256(Topics.LIQUIDATE), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
+        );
+        SYSTEM.subscribe(
+            baseChainId_, address(0), uint256(Topics.RELIEF_APPLIED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
+        );
+        SYSTEM.subscribe(
+            unichainChainId_, address(0), uint256(Topics.CLAIM_PAID), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
+        );
     }
 
     /// @notice Entry point for every subscribed log. Routes cheaply and never reverts on data it

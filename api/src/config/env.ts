@@ -26,6 +26,7 @@ const schema = z.object({
   COVERAGE_POOL_ADDRESS: address,
   CLAIM_VAULT_ADDRESS: address,
   REACTIVE_ADDRESS: address,
+  REACTIVE_SYSTEM_CONTRACT: address,
   BASE_REGISTRY_ADDRESS: address,
   BASE_COVER_ASSET: address,
   UNICHAIN_COVER_ASSET: address,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeAbiParameters } from 'viem';
+import { encodeAbiParameters, encodeFunctionData, zeroAddress } from 'viem';
 import type { Hex } from 'viem';
 import { MemoryDb } from './utils/memory-db.js';
 import { TOPICS, decodeLog, deriveRunId } from '../src/services/decoder.js';
@@ -12,6 +12,44 @@ const BORROWER: Hex = `0x${'33'.repeat(20)}`;
 const DESTINATION: Hex = `0x${'44'.repeat(20)}`;
 const MORPHO: Hex = `0x${'55'.repeat(20)}`;
 const LOG_INDEX = 14;
+
+const REACTIVE_CHAIN_ID = 5_318_007;
+const REACTIVE: Hex = `0x${'aa'.repeat(20)}`;
+const SYSTEM: Hex = `0x${'88'.repeat(20)}`;
+const RUN_ID: Hex = `0x${'bb'.repeat(32)}`;
+
+const SETTLE_ABI = [
+  {
+    type: 'function',
+    name: 'settleCascade',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'sender', type: 'address' },
+      { name: 'runId', type: 'bytes32' },
+      { name: 'policyId', type: 'uint256' },
+      { name: 'reliefLimit', type: 'uint256' },
+      { name: 'decidedAt', type: 'uint64' },
+      { name: 'liquidateBlock', type: 'uint64' },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const REGISTER_ABI = [
+  {
+    type: 'function',
+    name: 'registerPolicy',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'sender', type: 'address' },
+      { name: 'policyId', type: 'uint256' },
+      { name: 'cashCeiling', type: 'uint256' },
+      { name: 'paidThrough', type: 'uint64' },
+      { name: 'destination', type: 'address' },
+    ],
+    outputs: [],
+  },
+] as const;
 
 function topicAddress(address: Hex): Hex {
   return `0x${'0'.repeat(24)}${address.slice(2)}` as Hex;
@@ -60,6 +98,39 @@ function cashLog(runId: Hex) {
   };
 }
 
+/** The Lasna system contract's `CallbackRequest`, as the chain actually emits it. */
+function callbackRequestLog(payload: Hex, gasLimit = 900_000n) {
+  // The system contract stores `abi.encode(CallbackConfiguration_V_1_0)`, so the struct is encoded
+  // as one dynamic tuple: 0x20 offset, then chainId, recipient, gasLimit, payload.
+  const config = encodeAbiParameters(
+    [
+      {
+        type: 'tuple',
+        components: [
+          { name: 'chainId', type: 'uint256' },
+          { name: 'recipient', type: 'address' },
+          { name: 'gasLimit', type: 'uint64' },
+          { name: 'payload', type: 'bytes' },
+        ],
+      },
+    ],
+    [{ chainId: BigInt(CHAIN_ID), recipient: DESTINATION, gasLimit, payload }],
+  );
+  return {
+    address: SYSTEM,
+    topics: [
+      TOPICS.callbackRequest,
+      topicUint(BigInt(CHAIN_ID)),
+      topicAddress(REACTIVE),
+      topicAddress(DESTINATION),
+    ] as Hex[],
+    data: encodeAbiParameters([{ type: 'uint8' }, { type: 'bytes' }], [0, config]),
+    blockNumber: 300n,
+    transactionHash: `0x${'cc'.repeat(32)}` as Hex,
+    logIndex: 4,
+  };
+}
+
 function seedPolicy(db: MemoryDb): void {
   db.seed('policies_mirror', [
     {
@@ -93,6 +164,66 @@ describe('decoder', () => {
 
   it('ignores an unknown topic', () => {
     expect(decodeLog(CHAIN_ID, { ...liquidateLog(), topics: [`0x${'ab'.repeat(32)}` as Hex] })).toBeNull();
+  });
+
+  it('decodes the Lasna CallbackRequest and recovers the shared runId', () => {
+    const payload = encodeFunctionData({
+      abi: SETTLE_ABI,
+      functionName: 'settleCascade',
+      args: [zeroAddress, RUN_ID, 7n, 3_000n * 10n ** 18n, 1_700_000_000n, 100n],
+    });
+
+    const decoded = decodeLog(REACTIVE_CHAIN_ID, callbackRequestLog(payload));
+    if (decoded?.kind !== 'callbackRequest') throw new Error('callback request did not decode');
+
+    expect(decoded.sender).toBe(REACTIVE);
+    expect(decoded.chainId).toBe(BigInt(CHAIN_ID));
+    expect(decoded.recipient).toBe(DESTINATION);
+    expect(decoded.gasLimit).toBe(900_000n);
+    expect(decoded.runId).toBe(RUN_ID);
+  });
+
+  it('does not invent a runId for a registration callback', () => {
+    const payload = encodeFunctionData({
+      abi: REGISTER_ABI,
+      functionName: 'registerPolicy',
+      args: [zeroAddress, 7n, 2_000n * 10n ** 18n, 1_700_000_000n, DESTINATION],
+    });
+
+    const decoded = decodeLog(REACTIVE_CHAIN_ID, callbackRequestLog(payload, 500_000n));
+    if (decoded?.kind !== 'callbackRequest') throw new Error('callback request did not decode');
+
+    expect(decoded.runId).toBeNull();
+  });
+
+  it('skips a callback request whose configuration is not a V_1_0 struct', () => {
+    const payload = encodeFunctionData({
+      abi: SETTLE_ABI,
+      functionName: 'settleCascade',
+      args: [zeroAddress, RUN_ID, 7n, 3_000n * 10n ** 18n, 1_700_000_000n, 100n],
+    });
+    const log = callbackRequestLog(payload);
+    const flat = encodeAbiParameters(
+      [{ type: 'uint256' }, { type: 'address' }, { type: 'uint64' }, { type: 'bytes' }],
+      [BigInt(CHAIN_ID), DESTINATION, 900_000n, payload],
+    );
+
+    const malformed = { ...log, data: encodeAbiParameters([{ type: 'uint8' }, { type: 'bytes' }], [0, flat]) };
+
+    // Skipped, not thrown: a log this decoder cannot read must never stop the chain's cursor.
+    expect(decodeLog(REACTIVE_CHAIN_ID, malformed)).toBeNull();
+  });
+
+  it('rejects a callback request whose indexed topics disagree with its payload', () => {
+    const payload = encodeFunctionData({
+      abi: SETTLE_ABI,
+      functionName: 'settleCascade',
+      args: [zeroAddress, RUN_ID, 7n, 3_000n * 10n ** 18n, 1_700_000_000n, 100n],
+    });
+    const log = callbackRequestLog(payload);
+    const mismatched = { ...log, topics: [log.topics[0], log.topics[1], log.topics[2], topicAddress(BORROWER)] as Hex[] };
+
+    expect(decodeLog(REACTIVE_CHAIN_ID, mismatched)).toBeNull();
   });
 });
 

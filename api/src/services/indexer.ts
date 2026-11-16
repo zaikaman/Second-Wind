@@ -3,7 +3,7 @@ import type { Hex } from 'viem';
 import { logger } from '../lib/logger.js';
 import type { RpcClient } from '../lib/rpc.js';
 import { decodeLog } from './decoder.js';
-import { applyEvent } from './joiner.js';
+import { applyEvent, type EventHooks } from './joiner.js';
 
 export type IndexerChain = 'base' | 'unichain' | 'reactive';
 
@@ -13,13 +13,15 @@ export type IndexerDeps = {
   addresses: {
     base: { registry: Hex; morpho: Hex; coveragePool: Hex };
     unichain: { claimVault: Hex };
-    reactive: { contract: Hex };
+    reactive: { contract: Hex; system: Hex };
   };
   /** Block to start from when no cursor exists yet. */
   startBlocks: Record<IndexerChain, number>;
   /** Blocks to lag the head by before indexing, so a reorg is unlikely to be indexed. */
   confirmations: number;
   pollIntervalMs: number;
+  /** Health of a loan just before a liquidation, read while that block is still recent. */
+  readHealthBefore?: EventHooks['readHealthBefore'];
 };
 
 const CHAIN_IDS: Record<IndexerChain, number> = { base: 84_532, unichain: 1_301, reactive: 5_318_007 };
@@ -27,7 +29,9 @@ const CHAIN_IDS: Record<IndexerChain, number> = { base: 84_532, unichain: 1_301,
 const WATCHED: Record<IndexerChain, (deps: IndexerDeps) => Hex[]> = {
   base: (deps) => [deps.addresses.base.registry, deps.addresses.base.morpho, deps.addresses.base.coveragePool],
   unichain: (deps) => [deps.addresses.unichain.claimVault],
-  reactive: (deps) => [deps.addresses.reactive.contract],
+  // The dispatch proof is the system contract's `CallbackRequest`; the reactive contract itself only
+  // emits its one-time setter events, which do not belong to a claim.
+  reactive: (deps) => [deps.addresses.reactive.contract, deps.addresses.reactive.system],
 };
 
 /** Cursor for one chain, or null when the chain has never been indexed. */
@@ -56,6 +60,9 @@ export async function writeCursor(db: SupabaseClient, chainId: number, lastBlock
   }
 }
 
+/** Some destination RPCs reject `eth_getLogs` spans longer than 1,000 blocks. 900 leaves headroom. */
+const LOG_RANGE = 900;
+
 /**
  * One bounded pass over a chain: read the head, fetch the logs the watched contracts emitted since
  * the cursor, apply each one, then advance the cursor. Exported so tests and `POST /internal/reindex`
@@ -76,61 +83,75 @@ export async function runOnce(deps: IndexerDeps, chain: IndexerChain): Promise<n
     return 0;
   }
 
-  const logs = await client.getLogs({
-    address: WATCHED[chain](deps),
-    fromBlock: BigInt(from),
-    toBlock: BigInt(target),
-  });
-
   const blockTimes = new Map<number, Date>();
   let applied = 0;
 
-  for (const log of logs) {
-    const blockNumber = Number(log.blockNumber);
-    if (!log.topics.length || log.transactionHash === null || log.logIndex === null) {
-      continue;
-    }
-
-    const decoded = decodeLog(chainId, {
-      address: log.address,
-      topics: log.topics as Hex[],
-      data: log.data,
-      blockNumber: log.blockNumber,
-      transactionHash: log.transactionHash,
-      logIndex: log.logIndex,
+  for (let start = from; start <= target; start += LOG_RANGE) {
+    const end = Math.min(start + LOG_RANGE - 1, target);
+    const logs = await client.getLogs({
+      address: WATCHED[chain](deps),
+      fromBlock: BigInt(start),
+      toBlock: BigInt(end),
     });
-    if (!decoded) {
-      continue;
-    }
 
-    let blockTime = blockTimes.get(blockNumber);
-    if (!blockTime) {
-      const block = await client.getBlock({ blockNumber: BigInt(blockNumber) });
-      blockTime = new Date(Number(block.timestamp) * 1000);
-      blockTimes.set(blockNumber, blockTime);
-    }
+    for (const log of logs) {
+      const blockNumber = Number(log.blockNumber);
+      if (!log.topics.length || log.transactionHash === null || log.logIndex === null) {
+        continue;
+      }
 
-    try {
-      await applyEvent(deps.db, {
-        chainId,
+      const decoded = decodeLog(chainId, {
         address: log.address,
-        blockNumber,
-        blockTime,
-        txHash: log.transactionHash,
+        topics: log.topics as Hex[],
+        data: log.data,
+        blockNumber: log.blockNumber,
+        transactionHash: log.transactionHash,
         logIndex: log.logIndex,
-        decoded,
       });
-      applied += 1;
-    } catch (error) {
-      // The cursor must not advance past a log that could not be applied, or the claim would be
-      // lost. Stop this pass here; the next pass retries from the same block.
-      logger.warn({ err: error, chain, blockNumber }, 'indexer stopped early; will retry');
-      await writeCursor(deps.db, chainId, BigInt(blockNumber - 1));
-      return applied;
+      if (!decoded) {
+        continue;
+      }
+
+      // The system contract is shared by every reactive contract on Lasna, so a callback request is
+      // only ours when the sending reactive contract is.
+      if (decoded.kind === 'callbackRequest' && decoded.sender.toLowerCase() !== deps.addresses.reactive.contract.toLowerCase()) {
+        continue;
+      }
+
+      let blockTime = blockTimes.get(blockNumber);
+      if (!blockTime) {
+        const block = await client.getBlock({ blockNumber: BigInt(blockNumber) });
+        blockTime = new Date(Number(block.timestamp) * 1000);
+        blockTimes.set(blockNumber, blockTime);
+      }
+
+      try {
+        await applyEvent(
+          deps.db,
+          {
+            chainId,
+            address: log.address,
+            blockNumber,
+            blockTime,
+            txHash: log.transactionHash,
+            logIndex: log.logIndex,
+            decoded,
+          },
+          { readHealthBefore: deps.readHealthBefore },
+        );
+        applied += 1;
+      } catch (error) {
+        // The cursor must not advance past a log that could not be applied, or the claim would be
+        // lost. Stop this pass here; the next pass retries from the same block.
+        logger.warn({ err: error, chain, blockNumber }, 'indexer stopped early; will retry');
+        await writeCursor(deps.db, chainId, BigInt(blockNumber - 1));
+        return applied;
+      }
     }
+
+    await writeCursor(deps.db, chainId, BigInt(end));
   }
 
-  await writeCursor(deps.db, chainId, BigInt(target));
   return applied;
 }
 

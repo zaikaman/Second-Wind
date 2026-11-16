@@ -20,6 +20,7 @@ type ClaimRow = {
   status: ClaimSummary['status'];
   settled_at: string | null;
   total_latency_ms: number | null;
+  health_before: string | null;
 };
 
 type EventRow = {
@@ -34,8 +35,10 @@ type EventRow = {
   error: string | null;
 };
 
+// Numeric columns are cast to text: PostgREST would otherwise render a 21-digit wei amount as a
+// JSON number and JSON.parse would round it to a double before the API ever sees it.
 const CLAIM_COLUMNS =
-  'run_id,policy_id,borrower,market_id,origin_chain_id,origin_tx_hash,origin_block,origin_log_index,origin_block_time,fee_amount,cash_limit,relief_limit,mode,status,settled_at,total_latency_ms';
+  'run_id,policy_id::text,borrower,market_id,origin_chain_id,origin_tx_hash,origin_block,origin_log_index,origin_block_time,fee_amount::text,cash_limit::text,relief_limit::text,mode,status,settled_at,total_latency_ms,health_before::text';
 
 /** Reads the cache and shapes it into the documented receipt. All amounts stay decimal strings. */
 export function createClaimsStore(db: SupabaseClient): ClaimsStore {
@@ -77,7 +80,7 @@ export function createClaimsStore(db: SupabaseClient): ClaimsStore {
 
       const { data: events, error: eventError } = await db
         .from('claim_events')
-        .select('chain_id,kind,status,tx_hash,block_number,block_time,amount,detail,error')
+        .select('chain_id,kind,status,tx_hash,block_number,block_time,amount::text,detail,error')
         .eq('run_id', runId);
       if (eventError) {
         throw new Error(`claim events read failed: ${eventError.message}`);
@@ -130,7 +133,7 @@ function toReceipt(claim: ClaimRow, events: EventRow[]): ReceiptView {
       txHash: dispatch?.tx_hash ?? null,
       blockNumber: dispatch?.block_number ?? null,
       blockTime: dispatch?.block_time ? new Date(dispatch.block_time).toISOString() : null,
-      explorer: dispatch?.tx_hash ? explorerUrl(5318007, 'tx', dispatch.tx_hash) : null,
+      explorer: dispatch?.tx_hash ? explorerUrl(dispatch.chain_id, 'tx', dispatch.tx_hash) : null,
     },
     fee: claim.fee_amount,
     split: {
@@ -163,28 +166,12 @@ function toBranch(event: EventRow, claim: ClaimRow): BranchView {
   if (event.kind === 'relief') {
     branch.marketId = typeof detail.marketId === 'string' ? detail.marketId : null;
     branch.healthAfter = typeof detail.healthAfter === 'string' ? detail.healthAfter : null;
-    branch.healthBefore = deriveHealthBefore(detail, amount);
+    branch.healthBefore = claim.health_before;
   } else {
     branch.destination = typeof detail.destination === 'string' ? detail.destination : null;
   }
 
   return branch;
-}
-
-/**
- * Health is proportional to `1 / debt`, so the health before a repayment follows from the values
- * after it: `before = after * debtAfter / (debtAfter + spent)`.
- */
-function deriveHealthBefore(detail: Record<string, unknown>, spent: string): string | null {
-  if (typeof detail.healthAfter !== 'string' || typeof detail.debtAfter !== 'string') {
-    return null;
-  }
-  const debtAfter = BigInt(detail.debtAfter);
-  const denominator = debtAfter + BigInt(spent);
-  if (denominator === 0n) {
-    return null;
-  }
-  return ((BigInt(detail.healthAfter) * debtAfter) / denominator).toString();
 }
 
 function branchLatency(origin: string, confirmed: string | null): number | null {

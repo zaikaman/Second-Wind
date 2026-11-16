@@ -115,3 +115,56 @@ function mulDivUp(value: bigint, numerator: bigint, denominator: bigint): bigint
   }
   return (value * numerator + denominator - 1n) / denominator;
 }
+
+/**
+ * Health immediately before a liquidation, read at the block that preceded the trigger. Captured
+ * while the trigger block is still recent, because that state is what makes the receipt readable:
+ * the loan's health before the crash protocol ran, not after.
+ */
+export function createHealthAtReader(client: RpcClient, morpho: Hex) {
+  return async (marketId: Hex, borrower: Hex, triggerBlock: number): Promise<string | null> => {
+    if (triggerBlock <= 0) {
+      return null;
+    }
+    try {
+      const blockNumber = BigInt(triggerBlock - 1);
+      const [position, params] = await Promise.all([
+        client.readContract({
+          address: morpho,
+          abi: MORPHO_ABI,
+          functionName: 'position',
+          args: [marketId, borrower],
+          blockNumber,
+        }),
+        client.readContract({
+          address: morpho,
+          abi: MORPHO_ABI,
+          functionName: 'idToMarketParams',
+          args: [marketId],
+          blockNumber,
+        }),
+      ]);
+      if (position.collateral === 0n || position.borrowShares === 0n) {
+        return null;
+      }
+
+      const [market, price] = await Promise.all([
+        client.readContract({ address: morpho, abi: MORPHO_ABI, functionName: 'market', args: [marketId], blockNumber }),
+        client.readContract({ address: params.oracle, abi: ORACLE_ABI, functionName: 'price', blockNumber }),
+      ]);
+
+      const debt = mulDivUp(
+        position.borrowShares,
+        market.totalBorrowAssets + VIRTUAL_ASSETS,
+        market.totalBorrowShares + VIRTUAL_SHARES,
+      );
+      if (debt === 0n) {
+        return null;
+      }
+      const collateralValue = (position.collateral * price) / 10n ** 36n;
+      return ((collateralValue * params.lltv) / debt).toString();
+    } catch {
+      return null;
+    }
+  };
+}

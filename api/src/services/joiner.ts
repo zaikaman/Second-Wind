@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
 import type { Hex } from 'viem';
 import { penalty, split } from '../lib/fee-math.js';
 import { logger } from '../lib/logger.js';
@@ -38,52 +38,79 @@ export function deriveClaimStatus(branches: Record<string, BranchStatus | undefi
   return 'pending';
 }
 
+/**
+ * Supabase reports write failures in `error` instead of throwing, and a dropped write is invisible
+ * until the API serves a claim that was never stored. Every write goes through here so the indexer
+ * sees the failure and holds its cursor at the offending block.
+ */
+function unwrap(result: { error: PostgrestError | null }): void {
+  if (result.error) {
+    throw new Error(`${result.error.code ?? 'unknown'}: ${result.error.message}`);
+  }
+}export type EventHooks = {
+  /**
+   * Health of a loan on the block before it was liquidated. Read at index time, while the trigger
+   * block is still inside the node's state-retention window.
+   */
+  readHealthBefore?: (marketId: Hex, borrower: Hex, triggerBlock: number) => Promise<string | null>;
+};
+
 /** Applies one decoded log to the cache. Every write is an upsert, so re-indexing is safe. */
-export async function applyEvent(db: SupabaseClient, event: IndexedEvent): Promise<void> {
+export async function applyEvent(
+  db: SupabaseClient,
+  event: IndexedEvent,
+  hooks: EventHooks = {},
+): Promise<void> {
   const { decoded } = event;
 
   switch (decoded.kind) {
     case 'policyCreated':
-      await db.from('policies_mirror').upsert(
-        {
-          policy_id: decoded.policyId.toString(),
-          borrower: decoded.borrower.toLowerCase(),
-          market_id: decoded.marketId.toLowerCase(),
-          coverage_cap: decoded.coverageCap.toString(),
-          cash_ceiling: decoded.cashCeiling.toString(),
-          relief_ceiling: decoded.reliefCeiling.toString(),
-          relief_used: '0',
-          cash_paid: '0',
-          relief_share_bps: decoded.reliefShareBps,
-          premium_per_second: decoded.premiumPerSecond.toString(),
-          paid_through: Number(decoded.paidThrough),
-          target_health: decoded.targetHealthWad.toString(),
-          cash_destination: decoded.cashDestination.toLowerCase(),
-          status: 'active',
-          lltv: decoded.lltv.toString(),
-          created_at: event.blockTime.toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'policy_id' },
+      unwrap(
+        await db.from('policies_mirror').upsert(
+          {
+            policy_id: decoded.policyId.toString(),
+            borrower: decoded.borrower.toLowerCase(),
+            market_id: decoded.marketId.toLowerCase(),
+            coverage_cap: decoded.coverageCap.toString(),
+            cash_ceiling: decoded.cashCeiling.toString(),
+            relief_ceiling: decoded.reliefCeiling.toString(),
+            relief_used: '0',
+            cash_paid: '0',
+            relief_share_bps: decoded.reliefShareBps,
+            premium_per_second: decoded.premiumPerSecond.toString(),
+            paid_through: Number(decoded.paidThrough),
+            target_health: decoded.targetHealthWad.toString(),
+            cash_destination: decoded.cashDestination.toLowerCase(),
+            status: 'active',
+            lltv: decoded.lltv.toString(),
+            created_at: event.blockTime.toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'policy_id', ignoreDuplicates: true },
+        ),
       );
       return;
 
     case 'premiumPaid':
-      await db
-        .from('policies_mirror')
-        .update({ paid_through: Number(decoded.paidThrough), updated_at: new Date().toISOString() })
-        .eq('policy_id', decoded.policyId.toString());
+      unwrap(
+        await db
+          .from('policies_mirror')
+          .update({ paid_through: Number(decoded.paidThrough), updated_at: new Date().toISOString() })
+          .eq('policy_id', decoded.policyId.toString()),
+      );
       return;
 
     case 'statusChanged':
-      await db
-        .from('policies_mirror')
-        .update({ status: statusName(decoded.status), updated_at: new Date().toISOString() })
-        .eq('policy_id', decoded.policyId.toString());
+      unwrap(
+        await db
+          .from('policies_mirror')
+          .update({ status: statusName(decoded.status), updated_at: new Date().toISOString() })
+          .eq('policy_id', decoded.policyId.toString()),
+      );
       return;
 
     case 'liquidate':
-      await recordLiquidate(db, event, decoded);
+      await recordLiquidate(db, event, decoded, hooks);
       return;
 
     case 'reliefApplied':
@@ -99,10 +126,12 @@ export async function applyEvent(db: SupabaseClient, event: IndexedEvent): Promi
           healthAfter: decoded.healthAfter.toString(),
         },
       });
-      await db
-        .from('policies_mirror')
-        .update({ relief_used: decoded.reliefSpent.toString() })
-        .eq('policy_id', decoded.policyId.toString());
+      unwrap(
+        await db
+          .from('policies_mirror')
+          .update({ relief_used: decoded.reliefSpent.toString() })
+          .eq('policy_id', decoded.policyId.toString()),
+      );
       return;
 
     case 'claimPaid':
@@ -114,28 +143,32 @@ export async function applyEvent(db: SupabaseClient, event: IndexedEvent): Promi
         amount: decoded.amount,
         detail: { destination: decoded.destination, paidThrough: Number(decoded.paidThrough) },
       });
-      await db
-        .from('policies_mirror')
-        .update({ cash_paid: decoded.amount.toString() })
-        .eq('policy_id', decoded.policyId.toString());
+      unwrap(
+        await db
+          .from('policies_mirror')
+          .update({ cash_paid: decoded.amount.toString() })
+          .eq('policy_id', decoded.policyId.toString()),
+      );
       return;
 
     case 'callbackRequest':
       if (!decoded.runId) {
         return;
       }
-      await db.from('claim_events').upsert(
-        {
-          run_id: decoded.runId.toLowerCase(),
-          chain_id: event.chainId,
-          kind: 'dispatch',
-          status: 'confirmed',
-          tx_hash: event.txHash.toLowerCase(),
-          block_number: event.blockNumber,
-          block_time: event.blockTime.toISOString(),
-          detail: { recipient: decoded.recipient, gasLimit: decoded.gasLimit.toString() },
-        },
-        { onConflict: 'run_id,chain_id,kind' },
+      unwrap(
+        await db.from('claim_events').upsert(
+          {
+            run_id: decoded.runId.toLowerCase(),
+            chain_id: event.chainId,
+            kind: 'dispatch',
+            status: 'confirmed',
+            tx_hash: event.txHash.toLowerCase(),
+            block_number: event.blockNumber,
+            block_time: event.blockTime.toISOString(),
+            detail: { recipient: decoded.recipient, gasLimit: decoded.gasLimit.toString() },
+          },
+          { onConflict: 'run_id,chain_id,kind' },
+        ),
       );
       return;
   }
@@ -145,6 +178,7 @@ async function recordLiquidate(
   db: SupabaseClient,
   event: IndexedEvent,
   decoded: Extract<Decoded, { kind: 'liquidate' }>,
+  hooks: EventHooks,
 ): Promise<void> {
   const { data: policy, error: policyError } = await db
     .from('policies_mirror')
@@ -165,26 +199,42 @@ async function recordLiquidate(
   const fee = penalty(decoded.repaidAssets, BigInt(policy.lltv));
   const { cash, relief } = split(fee, Number(policy.relief_share_bps));
 
-  await db.from('claims').upsert(
-    {
-      run_id: decoded.runId.toLowerCase(),
-      policy_id: String(policy.policy_id),
-      borrower: decoded.borrower.toLowerCase(),
-      market_id: decoded.marketId.toLowerCase(),
-      origin_chain_id: event.chainId,
-      origin_tx_hash: event.txHash.toLowerCase(),
-      origin_block: event.blockNumber,
-      origin_log_index: event.logIndex,
-      origin_block_time: event.blockTime.toISOString(),
-      fee_amount: fee.toString(),
-      cash_limit: cash.toString(),
-      relief_limit: relief.toString(),
-      mode: 'standard',
-      status: 'pending',
-      decided_at: event.blockTime.toISOString(),
-    },
-    { onConflict: 'run_id', ignoreDuplicates: true },
+  unwrap(
+    await db.from('claims').upsert(
+      {
+        run_id: decoded.runId.toLowerCase(),
+        policy_id: String(policy.policy_id),
+        borrower: decoded.borrower.toLowerCase(),
+        market_id: decoded.marketId.toLowerCase(),
+        origin_chain_id: event.chainId,
+        origin_tx_hash: event.txHash.toLowerCase(),
+        origin_block: event.blockNumber,
+        origin_log_index: event.logIndex,
+        origin_block_time: event.blockTime.toISOString(),
+        fee_amount: fee.toString(),
+        cash_limit: cash.toString(),
+        relief_limit: relief.toString(),
+        mode: 'standard',
+        status: 'pending',
+        decided_at: event.blockTime.toISOString(),
+      },
+      { onConflict: 'run_id', ignoreDuplicates: true },
+    ),
   );
+
+  if (hooks.readHealthBefore) {
+    // A separate update keeps a replay from resetting a claim that already settled, while still
+    // filling the health for a claim that was indexed before this column existed.
+    const healthBefore = await hooks.readHealthBefore(decoded.marketId, decoded.borrower, event.blockNumber);
+    if (healthBefore !== null) {
+      unwrap(
+        await db
+          .from('claims')
+          .update({ health_before: healthBefore })
+          .eq('run_id', decoded.runId.toLowerCase()),
+      );
+    }
+  }
 }
 
 async function recordBranch(
@@ -207,19 +257,21 @@ async function recordBranch(
     .eq('run_id', runId)
     .maybeSingle();
 
-  await db.from('claim_events').upsert(
-    {
-      run_id: runId,
-      chain_id: branch.chainId,
-      kind: branch.kind,
-      status: branch.status,
-      tx_hash: event.txHash.toLowerCase(),
-      block_number: event.blockNumber,
-      block_time: event.blockTime.toISOString(),
-      amount: branch.amount.toString(),
-      detail: branch.detail,
-    },
-    { onConflict: 'run_id,chain_id,kind' },
+  unwrap(
+    await db.from('claim_events').upsert(
+      {
+        run_id: runId,
+        chain_id: branch.chainId,
+        kind: branch.kind,
+        status: branch.status,
+        tx_hash: event.txHash.toLowerCase(),
+        block_number: event.blockNumber,
+        block_time: event.blockTime.toISOString(),
+        amount: branch.amount.toString(),
+        detail: branch.detail,
+      },
+      { onConflict: 'run_id,chain_id,kind' },
+    ),
   );
 
   if (claim?.origin_block_time) {
@@ -270,14 +322,16 @@ export async function refreshClaimStatus(db: SupabaseClient, runId: string): Pro
       ? Math.max(0, latest - new Date(origin.origin_block_time).getTime())
       : null;
 
-  await db
-    .from('claims')
-    .update({
-      status,
-      settled_at: status === 'settled' ? new Date(latest || Date.now()).toISOString() : null,
-      total_latency_ms: totalLatency,
-    })
-    .eq('run_id', runId);
+  unwrap(
+    await db
+      .from('claims')
+      .update({
+        status,
+        settled_at: status === 'settled' ? new Date(latest || Date.now()).toISOString() : null,
+        total_latency_ms: totalLatency,
+      })
+      .eq('run_id', runId),
+  );
 
   return status;
 }

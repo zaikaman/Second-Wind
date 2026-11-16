@@ -14,7 +14,9 @@ export const SIGNATURES = {
   liquidate: 'Liquidate(bytes32,address,address,uint256,uint256,uint256,uint256,uint256)',
   reliefApplied: 'ReliefApplied(bytes32,uint256,bytes32,uint256,uint256,uint256,uint64)',
   claimPaid: 'ClaimPaid(bytes32,uint256,address,uint256,uint64)',
-  callbackRequest: 'CallbackRequest(uint256,address,uint64,bytes)',
+  // Emitted by the Reactive Network system contract at 0x8888... for every callback request; the
+  // request itself is carried in the ABI-encoded `CallbackConfiguration_V_1_0` bytes.
+  callbackRequest: 'CallbackRequest(uint256,address,address,uint8,bytes)',
 } as const;
 
 export type SignatureName = keyof typeof SIGNATURES;
@@ -61,7 +63,14 @@ export type Decoded =
       appliedAt: bigint;
     }
   | { kind: 'claimPaid'; runId: Hex; policyId: bigint; destination: Hex; amount: bigint; paidThrough: bigint }
-  | { kind: 'callbackRequest'; chainId: bigint; recipient: Hex; gasLimit: bigint; runId: Hex | null };
+  | {
+      kind: 'callbackRequest';
+      chainId: bigint;
+      sender: Hex;
+      recipient: Hex;
+      gasLimit: bigint;
+      runId: Hex | null;
+    };
 
 export type RawLog = {
   address: Hex;
@@ -84,6 +93,17 @@ export function deriveRunId(chainId: number, txHash: Hex, logIndex: number): Hex
 
 /** Decodes one log, or returns null for anything the indexer does not handle. */
 export function decodeLog(chainId: number, log: RawLog): Decoded | null {
+  try {
+    return decodeUnsafe(chainId, log);
+  } catch {
+    // A matching topic with data this decoder cannot read (another version of the event, a
+    // re-encoded payload) is skipped. Throwing here would stop the chain's cursor for every block
+    // after the offending log.
+    return null;
+  }
+}
+
+function decodeUnsafe(chainId: number, log: RawLog): Decoded | null {
   const topic0 = log.topics[0];
   if (!topic0) {
     return null;
@@ -186,13 +206,42 @@ export function decodeLog(chainId: number, log: RawLog): Decoded | null {
 
     case TOPICS.callbackRequest: {
       if (log.topics.length !== 4) return null;
-      const [chainId_, recipient, gasLimit] = [
-        asBigInt(log.topics[1]),
-        asAddress(log.topics[2]),
-        asBigInt(log.topics[3]),
-      ];
-      const [payload] = decodeAbiParameters([{ type: 'bytes' }], log.data);
-      return { kind: 'callbackRequest', chainId: chainId_, recipient, gasLimit, runId: runIdFromPayload(payload) };
+
+      const [version, config] = decodeAbiParameters([{ type: 'uint8' }, { type: 'bytes' }], log.data);
+      if (version !== 0) {
+        // V_1_0 is the only configuration layout this indexer knows how to read.
+        return null;
+      }
+
+      // The system contract emits `abi.encode(CallbackConfiguration_V_1_0)`, which encodes the
+      // dynamic struct as one tuple: a head offset followed by chainId, recipient, gasLimit and the
+      // callback payload. Reading those four words straight off the bytes would read the offset.
+      const [request] = decodeAbiParameters(
+        [
+          {
+            type: 'tuple',
+            components: [
+              { name: 'chainId', type: 'uint256' },
+              { name: 'recipient', type: 'address' },
+              { name: 'gasLimit', type: 'uint64' },
+              { name: 'payload', type: 'bytes' },
+            ],
+          },
+        ],
+        config,
+      );
+      const { chainId: configChainId, recipient: configRecipient, gasLimit, payload } = request;
+
+      // The indexed topics and the encoded configuration must agree, or this is not a log this
+      // decoder understands and guessing at it would corrupt the receipt.
+      const chainId_ = asBigInt(log.topics[1]);
+      const sender = asAddress(log.topics[2]);
+      const recipient = asAddress(log.topics[3]);
+      if (configChainId !== chainId_ || configRecipient.toLowerCase() !== recipient.toLowerCase()) {
+        return null;
+      }
+
+      return { kind: 'callbackRequest', chainId: chainId_, sender, recipient, gasLimit, runId: settlementRunId(payload) };
     }
 
     default:
@@ -201,10 +250,23 @@ export function decodeLog(chainId: number, log: RawLog): Decoded | null {
 }
 
 /**
- * Every settlement payload starts with `(address sender, bytes32 runId, ...)`, so the shared id is
- * the second 32-byte word after the 4-byte selector.
+ * The callback payloads the product sends are `settleCascade` and `payClaim`; both take the shared
+ * runId as their first argument after `address`, so it is the second 32-byte word. `registerPolicy`
+ * carries no runId and must decode to null rather than to a slice of an unrelated argument.
  */
-function runIdFromPayload(payload: Hex): Hex | null {
+const RUN_ID_SELECTORS = new Set<Hex>([
+  selector('settleCascade(address,bytes32,uint256,uint256,uint64,uint64)'),
+  selector('payClaim(address,bytes32,uint256,uint256,uint64,uint64)'),
+]);
+
+function selector(signature: string): Hex {
+  return keccak256(toHex(signature)).slice(0, 10) as Hex;
+}
+
+function settlementRunId(payload: Hex): Hex | null {
+  if (!RUN_ID_SELECTORS.has(payload.slice(0, 10) as Hex)) {
+    return null;
+  }
   if (payload.length < 2 + 8 + 128) {
     return null;
   }

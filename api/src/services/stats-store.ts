@@ -39,7 +39,12 @@ export function createStatsStore(
 
     async coverage(): Promise<CoverageStats> {
       const [{ data: policies, error: policyError }, { count, error: claimError }, reserves] = await Promise.all([
-        db.from('policies_mirror').select('coverage_cap,cash_ceiling,relief_ceiling,cash_paid,relief_used,premium_per_second,paid_through,created_at'),
+        // Cast to text so the 21-digit wei amounts survive PostgREST's JSON number rendering.
+        db
+          .from('policies_mirror')
+          .select(
+            'coverage_cap::text,cash_ceiling::text,relief_ceiling::text,cash_paid::text,relief_used::text,premium_per_second::text,paid_through,created_at',
+          ),
         db.from('claims').select('run_id', { count: 'exact', head: true }),
         readReserves(),
       ]);

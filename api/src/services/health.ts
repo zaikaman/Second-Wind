@@ -4,7 +4,17 @@ import type { ChainReport, HealthProvider, HealthSnapshot } from '../routes/heal
 import { head } from '../lib/rpc.js';
 import type { RpcClient } from '../lib/rpc.js';
 
-/** The callback proxies expose `debt(address)` and `reserves(address)` for funded contracts. */
+/**
+ * The Reactive system contract holds the funding ledger for every contract on Lasna. It is deployed
+ * at the same vanity address on every Reactive network, which is why the Solidity library pins it as
+ * a constant (`AbstractReactive.SYSTEM`) instead of reading it from configuration.
+ */
+const REACTIVE_SYSTEM = '0x8888888888888888888888888888888888888888';
+
+/**
+ * The callback proxies expose `debt(address)` and `reserves(address)` for funded contracts, and the
+ * Reactive system contract exposes the same pair for the contracts it calls.
+ */
 const PROXY_ABI = [
   {
     type: 'function',
@@ -60,16 +70,20 @@ async function fundingReport(
   proxy: `0x${string}`,
   account: `0x${string}`,
 ): Promise<{ native: string; debt: string; reserves: string }> {
+  // The native balance is read on its own: a contract can be out of funds even when the ledger read
+  // reverts, and that is the single most useful number when callbacks stop arriving.
+  const balance = await client.getBalance({ address: account }).catch(() => null);
+  const native = balance === null ? 'unknown' : ether(balance);
+
   try {
-    const [balance, debt, reserves] = await Promise.all([
-      client.getBalance({ address: account }),
+    const [debt, reserves] = await Promise.all([
       client.readContract({ address: proxy, abi: PROXY_ABI, functionName: 'debt', args: [account] }),
       client.readContract({ address: proxy, abi: PROXY_ABI, functionName: 'reserves', args: [account] }),
     ]);
-    return { native: ether(balance), debt: ether(debt), reserves: ether(reserves) };
+    return { native, debt: ether(debt), reserves: ether(reserves) };
   } catch {
     // A read failure must not take the health endpoint down; an unknown debt reads as unfunded.
-    return { native: '0.0000', debt: 'unknown', reserves: '0.0000' };
+    return { native, debt: 'unknown', reserves: 'unknown' };
   }
 }
 
@@ -101,7 +115,7 @@ export function createHealthProvider(deps: HealthDeps): HealthProvider {
     ]);
 
     const [reactiveFunding, coverageFunding, vaultFunding] = await Promise.all([
-      fundingReport(deps.clients.reactive, deps.addresses.reactive, deps.addresses.reactive),
+      fundingReport(deps.clients.reactive, REACTIVE_SYSTEM, deps.addresses.reactive),
       fundingReport(deps.clients.base, deps.proxies.base, deps.addresses.coveragePool),
       fundingReport(deps.clients.unichain, deps.proxies.unichain, deps.addresses.claimVault),
     ]);

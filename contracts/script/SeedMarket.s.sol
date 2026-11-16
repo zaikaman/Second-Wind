@@ -107,6 +107,7 @@ contract SeedMarket is Json {
 
     /// @dev Deploys the oracle, adds liquidity, creates the market, lends into it and funds the pool.
     function _market(Config memory config, address pool) private returns (address oracle, bytes32 marketId) {
+        address deployer = vm.addr(config.deployerKey);
         vm.startBroadcast(config.deployerKey);
 
         oracle = address(new MorphoV3Oracle(pool, config.usdc, config.weth, config.targetPrice));
@@ -117,9 +118,9 @@ contract SeedMarket is Json {
         });
         IMorpho(config.morpho).createMarket(params);
 
-        MockERC20(config.usdc).mint(address(this), MARKET_LIQUIDITY + RESERVE);
+        MockERC20(config.usdc).mint(deployer, MARKET_LIQUIDITY + RESERVE);
         MockERC20(config.usdc).approve(config.morpho, type(uint256).max);
-        IMorpho(config.morpho).supply(params, MARKET_LIQUIDITY, 0, address(this), "");
+        IMorpho(config.morpho).supply(params, MARKET_LIQUIDITY, 0, deployer, "");
         MockERC20(config.usdc).transfer(config.coveragePool, RESERVE);
         vm.stopBroadcast();
 
@@ -132,26 +133,27 @@ contract SeedMarket is Json {
 
     /// @dev Mints both assets and adds a full-range position so swaps have somewhere to move.
     function _provideLiquidity(Config memory config, address token0) private {
-        MockERC20(config.weth).mint(address(this), config.seedLiquidity);
-        MockERC20(config.usdc).mint(address(this), config.seedLiquidity);
+        address deployer = vm.addr(config.deployerKey);
+        MockERC20(config.weth).mint(deployer, config.seedLiquidity);
+        MockERC20(config.usdc).mint(deployer, config.seedLiquidity);
         MockERC20(config.weth).approve(config.npm, type(uint256).max);
         MockERC20(config.usdc).approve(config.npm, type(uint256).max);
 
         INonfungiblePositionManager(config.npm)
             .mint(
                 INonfungiblePositionManager.MintParams({
-                    token0: token0,
-                    token1: token0 == config.weth ? config.usdc : config.weth,
-                    fee: FEE_TIER,
-                    tickLower: MIN_TICK,
-                    tickUpper: MAX_TICK,
-                    amount0Desired: config.seedLiquidity,
-                    amount1Desired: config.seedLiquidity,
-                    amount0Min: 0,
-                    amount1Min: 0,
-                    recipient: address(this),
-                    deadline: block.timestamp + 1 hours
-                })
+                token0: token0,
+                token1: token0 == config.weth ? config.usdc : config.weth,
+                fee: FEE_TIER,
+                tickLower: MIN_TICK,
+                tickUpper: MAX_TICK,
+                amount0Desired: config.seedLiquidity,
+                amount1Desired: config.seedLiquidity,
+                amount0Min: 0,
+                amount1Min: 0,
+                recipient: deployer,
+                deadline: block.timestamp + 1 hours
+            })
             );
     }
 
@@ -176,12 +178,16 @@ contract SeedMarket is Json {
         require(health > 1e18, "SeedMarket: a seeded loan is already liquidatable");
     }
 
-    /// @dev `price` is loan units per collateral, scaled by 1e36. The pool price is token1 per
-    ///      token0, so the orientation decides whether the root or its inverse is used.
+    /// @dev `price` is loan units per collateral, scaled by 1e36. Uniswap encodes
+    ///      sqrt(token1 per token0) in Q96, and both assets have 18 decimals, so the human ratio is
+    ///      the raw ratio. `sqrt(price)` is that ratio's square root scaled by 1e18.
     function _sqrtPriceX96(address token0, address collateral, uint256 price) internal pure returns (uint160) {
-        uint256 root = Math.sqrt(price / 1e18);
+        uint256 root = Math.sqrt(price);
         require(root > 0, "SeedMarket: price too small");
-        return token0 == collateral ? uint160(root * 2 ** 96) : uint160((2 ** 96) / root);
+        if (token0 == collateral) {
+            return uint160((root * 2 ** 96) / 1e18);
+        }
+        return uint160((uint256(2 ** 96) * 1e18) / root);
     }
 
     function _health(address morpho, bytes32 marketId, address account, address oracle)

@@ -44,7 +44,8 @@ export function createStatsRouter(store: StatsStore): Router {
       const cash = samples.filter((sample) => sample.branch === 'cash').map((s) => s.latencyMs);
       const overall = percentiles(samples.map((s) => s.latencyMs));
 
-      const timestamps = samples.map((sample) => sample.runId);
+      // One entry per claim, not one per branch: the two branches share a run id.
+      const runIds = [...new Set(samples.map((sample) => sample.runId))];
       res.set('Cache-Control', 'max-age=2');
       res.json({
         trials: parsed.data.trials,
@@ -54,7 +55,7 @@ export function createStatsRouter(store: StatsStore): Router {
           cash: percentiles(cash),
         },
         samples,
-        runIds: timestamps,
+        runIds,
       });
     } catch (error) {
       next(error);

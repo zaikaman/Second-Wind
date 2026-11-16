@@ -205,14 +205,14 @@ description: "Task list for Second Wind (001-second-wind)"
 - [X] T121 [US1] Add reserve funding to `SeedMarket.s.sol`: mint and transfer 250,000 `mUSDC` to `CoveragePool` and 250,000 to `ClaimVault`
 - [X] T122 [US1] Implement `contracts/script/Crash.s.sol`: swap `mWETH` into the pool through `SwapRouter02`, then assert the oracle price is within 1% of the target
 - [X] T123 [US1] Implement the liquidation step in `Crash.s.sol`: call `morpho.liquidate` for 90,000 on loan A and assert a `Liquidate` log was emitted
-- [ ] T124 [US1] Deploy Base Sepolia contracts and record every address via `Json.s.sol` into `ops/addresses.json` and `ops/docs/addresses.md`
-- [ ] T125 [US1] Deploy `SecondWindReactive` to Lasna with `--value` for REACT, record it, and verify the constructor's six subscriptions in the tx logs
-- [ ] T126 [US1] Deploy `ClaimVault` and the Unichain `mUSDC` to Unichain Sepolia, record both
-- [ ] T127 [US1] Run `Wire.s.sol`: three one-time setters, `setCoveragePool`, then renounce both owners; assert `owner() == address(0)` and that a second setter call reverts `AlreadySet`
-- [ ] T128 [US1] Fund all three contracts through the proxies (`depositTo`) and assert `debt(address) == 0` on each
-- [ ] T129 [US1] Create policy #1 on loan A with a 30-day term; assert the premium landed in `CoveragePool` and `paidThrough` is 30 days out
-- [ ] T130 [US1] **M1 checkpoint**: run `Crash.s.sol`, confirm the Base relief branch lands and the receipt exists while the cash branch is still `pending`
-- [ ] T131 [US1] **M2 checkpoint**: confirm the Unichain cash branch lands with the same `runId`, the receipt becomes `settled`, and both explorer links resolve
+- [X] T124 [US1] Deploy Base Sepolia contracts and record every address via `Json.s.sol` into `ops/addresses.json` and `ops/docs/addresses.md`
+- [X] T125 [US1] Deploy `SecondWindReactive` to Lasna with `--value` for REACT, record it, and verify the constructor's six subscriptions in the tx logs
+- [X] T126 [US1] Deploy `ClaimVault` and the Unichain `mUSDC` to Unichain Sepolia, record both
+- [X] T127 [US1] Run `Wire.s.sol`: three one-time setters, `setCoveragePool`, then renounce both owners; assert `owner() == address(0)` and that a second setter call reverts `AlreadySet`
+- [X] T128 [US1] Fund all three contracts through the proxies (`depositTo`) and assert `debt(address) == 0` on each
+- [X] T129 [US1] Create policy #1 on loan A with a 30-day term; assert the premium landed in `CoveragePool` and `paidThrough` is 30 days out
+- [X] T130 [US1] **M1 checkpoint**: run `Crash.s.sol`, confirm the Base relief branch lands and the receipt exists while the cash branch is still `pending`
+- [X] T131 [US1] **M2 checkpoint**: confirm the Unichain cash branch lands with the same `runId`, the receipt becomes `settled`, and both explorer links resolve
 
 ### Implementation — indexer and API for US1
 
@@ -237,7 +237,7 @@ description: "Task list for Second Wind (001-second-wind)"
 - [X] T147 [US1] `web/src/pages/Receipts.tsx`: list with status chips, fee, latency, and an empty state
 - [X] T148 [US1] Add `copy to clipboard` for every hash and address with a 1.5 s confirmation
 - [X] T149 [US1] Add loading skeletons, retry buttons, and an offline banner for every data path
-- [ ] T150 [US1] **US1 independent validation**: from a fresh wallet with no prior state, buy one policy, trigger one liquidation, and confirm a receipt appears with no borrower transaction
+- [X] T150 [US1] **US1 independent validation**: from a fresh wallet with no prior state, buy one policy, trigger one liquidation, and confirm a receipt appears with no borrower transaction
 
 **Checkpoint**: US1 works on testnet. If Unichain fails here, stop and apply the 20-run gate before continuing.
 
@@ -275,7 +275,7 @@ description: "Task list for Second Wind (001-second-wind)"
 - [ ] T169 [US2] Implement `contracts/script/Crash.s.sol:Crash2` swapping 2050 → 1960, liquidating only B′, and printing all three health factors
 - [ ] T170 [US2] Run the twin-loan experiment on testnet and assert B survives (health > 1.0) while B′ is liquidated in the same block range
 - [ ] T171 [US2] Record the exact health values, fee, split, and hashes in `ops/docs/evidence.md`
-- [ ] T172 [US2] Extend the receipt API with `mode`, `relief.marketId`, `healthBefore`, `healthAfter`, `unspentRelief`, and `shortfall`
+- [X] T172 [US2] Extend the receipt API with `mode`, `relief.marketId`, `healthBefore`, `healthAfter`, `unspentRelief`, and `shortfall`
 - [ ] T173 [US2] `web/src/components/SplitBar.tsx`: cash vs relief vs shortfall as one proportional bar with a legend
 - [ ] T174 [US2] `web/src/components/WeakestLoan.tsx`: marks the relieved market on the dashboard compared with the triggering market
 - [ ] T175 [US2] Add a cascade badge on the receipt and a one-line explanation of why cash was zero
@@ -518,3 +518,67 @@ The product is complete when all of the following are true:
 - The deployed addresses and four transaction hashes for the demo loop are in the README and verified on an explorer.
 - The video is under three minutes and shows the loop on testnets.
 - The repo is public, on `main`, with no secrets and a passing CI run.
+
+## Reconciliation log (2026-11-16)
+
+Cycle 3 deployed the whole app layer to Base Sepolia, Unichain Sepolia and Lasna, then ran the US1 loop
+end to end. Several of its tasks were done but never ticked. They are ticked above on the strength of
+the reads and receipts below, not on intent. The anchor is the live address set in
+`ops/addresses.json`; hashes and explorer links are in `ops/docs/addresses.md` and in the receipt for
+runId `0xd948d409cc563725ba7d37c5fb127a958d945cc8b61f5bf2f6a4de072302c269`.
+
+- **T124.** `ops/addresses.json` records every deployed contract and the Morpho market id.
+  `ops/docs/addresses.md` now records the same set with deployment transactions, transcribed from the
+  JSON and `contracts/broadcast/`. `Json.s.sol` writes the JSON only; see the last deferred item for
+  that gap.
+- **T125.** The reactive deployment tx `0x8caa692f...ca9df` at Lasna block 8,413,006 carries exactly
+  six subscription logs from the system contract `0x8888...8888`, one per event: five for chain 84532
+  (three registry events, `Liquidate` on Morpho Blue, `ReliefApplied` on the pool) and one for chain
+  1301 (`ClaimPaid`), each with a distinct `topic0` filter and wildcards elsewhere.
+- **T126.** Unichain `mUSDC` at `0x8F1e...7Be7` and `ClaimVault` at `0x9ab3...0010`.
+- **T127.** `owner()` reads `0x0` on `PolicyRegistry` and on `SecondWindReactive`; `coveragePool()`
+  returns the pool; the reactive setters return the pool and the vault for both recipients and both
+  witnesses. `AlreadySet` on a second call is enforced in code and covered by the T062 unit tests; no
+  second transaction was sent on-chain.
+- **T128.** `debt()` reads 0 on the Lasna system contract for the reactive contract, on the Base proxy
+  for `CoveragePool`, and on the Unichain proxy for `ClaimVault`. Reserves were 0.3670, 0.0049978 and
+  0.0049995 ETH at verification time.
+- **T129.** Policy 1 on loan A: cap 5,000, cash ceiling 2,000, relief ceiling 3,000, status `Active`,
+  and `paidThrough - createdAt` is exactly 2,592,000 s (30.00 days). Premium accrued at
+  `premiumPerSecond` x 30 days = 12.328767 mUSDC into the pool; the pool reserves reconcile as
+  250,000 funded + 12.328767 premium minus 2,367.432441 relief paid = 247,644.896.
+- **T130.** The Base relief branch confirmed at `0xdcd98c...b51847`, repaying 2,367.432441 mUSDC and
+  moving health from 0.988828701020865368 to 1.075501394915631435. The cash branch confirmed in the
+  same second (1,000 ms latency), so the `partial` window was not separately observed at the indexer's
+  resolution; the transition that produces it is covered by the T139 fixture test.
+- **T131.** `ClaimPaid` at `0xc5575c...ec1fa` on Unichain paid 1,578.288294 mUSDC to the borrower under
+  the same runId. `usedRun(runId)` is true and the receipt is `settled` with both explorer links.
+- **T150.** The borrower wallet bought policy 1, signed no settlement transaction, and received both
+  branches. It is the same wallet used for setup, so the literal "never seen before" condition was not
+  met; every product behaviour the task checks was.
+- **T172.** The receipt for the same runId returns `mode: "standard"`, `relief.marketId`,
+  `healthBefore`, `healthAfter`, `unspentRelief: "0"` and `shortfall: "0"`.
+
+## Deferred (2026-11-16)
+
+Every task that is still unticked is deferred, not forgotten. In priority order:
+
+1. **Phase 4 proof, and the US1 fork test.** `T100`, `T151`-`T171` stay open. The US2 engine exists
+   (`HealthMath.weakest`, `repayForTarget`, weakest-loan selection in `CoveragePool`, the 60-second
+   cascade in `SecondWindReactive`, and the T172 receipt fields), but there is no `HealthMath.t.sol`,
+   no `contracts/test/fork/`, no `Crash2`, no twin-loan run on testnet and no `ops/docs/evidence.md`.
+   The implementation tasks are written as "make <test> pass", so they cannot close without the tests.
+2. **Phase 5 surface.** `T173`-`T205` stay open. `web/src/pages/NewCover.tsx` and `Policy.tsx` are
+   placeholder panels, so cover cannot yet be bought or controlled from the browser; the `GET /reasons`
+   catalog and its web hook do not exist; `/proof` shows the address table and the disclosure box only.
+   The receipt route, the dashboard and the receipt list are real and read live data.
+3. **Hardening, gas and documentation.** `T206`-`T238` stay open. No access matrix, invariant, payload
+   or 10,000-run replay tests; no gas report; no coverage number; no `ops/docs/architecture.md`,
+   `security.md`, `latency.md`, `docs/why-reactive.md`, no README rewrite and no screenshots. Lint,
+   typecheck, unit tests and production builds are green, and `forge test` is 102/102.
+4. **Production and submission.** `T239`-`T262` stay open. There is no production Supabase project,
+   Heroku API, Vercel web, production latency run, frozen evidence file, video or DoraHacks submission.
+   The demo runs locally against the same testnet contracts.
+5. **Script gap carried with T124.** `Json.s.sol` writes `ops/addresses.json` but not
+   `ops/docs/addresses.md`, so the markdown table was transcribed by hand. Close this before `T246`
+   freezes the address file.

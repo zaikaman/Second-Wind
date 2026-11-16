@@ -83,17 +83,25 @@ function ReceiptView({ receipt }: { receipt: ReceiptData }) {
           </dl>
         </Card>
 
-        <Card title="Dispatch" status={<StatusChip status={receipt.reactive.txHash ? 'confirmed' : 'pending'} />}>
-          <dl className="space-y-1 text-sm">
-            <Row label="Chain" value="Reactive Lasna" />
-            <Row label="Block" value={receipt.reactive.blockNumber?.toLocaleString() ?? '—'} />
-            <Row label="Time" value={receipt.reactive.blockTime ? new Date(receipt.reactive.blockTime).toLocaleString() : '—'} />
-            <Row
-              label="Transaction"
-              value={receipt.reactive.txHash ? <ExplorerLink href={receipt.reactive.explorer} hash={receipt.reactive.txHash} /> : '—'}
-            />
-          </dl>
-        </Card>
+        {/* The dispatch row is written only when the Lasna system contract's CallbackRequest for this
+            run id is indexed. Rendering an empty card as "pending" would describe a missing
+            observation as a product state, so the card appears once there is something to show. */}
+        {receipt.reactive.txHash ? (
+          <Card title="Dispatch" status={<StatusChip status="confirmed" />}>
+            <dl className="space-y-1 text-sm">
+              <Row label="Chain" value="Reactive Lasna" />
+              <Row label="Block" value={receipt.reactive.blockNumber?.toLocaleString() ?? '—'} />
+              <Row
+                label="Time"
+                value={receipt.reactive.blockTime ? new Date(receipt.reactive.blockTime).toLocaleString() : '—'}
+              />
+              <Row
+                label="Transaction"
+                value={<ExplorerLink href={receipt.reactive.explorer} hash={receipt.reactive.txHash} />}
+              />
+            </dl>
+          </Card>
+        ) : null}
 
         <BranchCard title="Relief on Base" branch={receipt.branches.relief} limit={receipt.split.reliefLimit} />
         <BranchCard title="Cash on Unichain" branch={receipt.branches.cash} limit={receipt.split.cashLimit} />
